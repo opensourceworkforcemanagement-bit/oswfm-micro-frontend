@@ -1,2 +1,2 @@
 if (document.getElementById("workcode")) import("./bootstrapWorkCodeManagement");
-if (document.getElementById("app")) import("./App");
+if (document.getElementById("app")) import("./bootstrapApp");

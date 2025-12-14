@@ -12,7 +12,7 @@ const isDev = process.env.NODE_ENV === "development";
 // Target browsers, see: https://github.com/browserslist/browserslist
 const targets = ["chrome >= 87", "edge >= 88", "firefox >= 78", "safari >= 14"];
 
-export default withZephyr()({
+export default defineConfig({
   context: __dirname,
   entry: {
     main: "./src/index.ts",

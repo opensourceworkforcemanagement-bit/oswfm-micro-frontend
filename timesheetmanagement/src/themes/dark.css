@@ -1,0 +1,41 @@
+/* packages/theme/src/themes/dark.css */
+
+[data-theme="dark"] {
+  /* Dark backgrounds */
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-text: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #64748b;
+  --color-border: #334155;
+  
+  /* Primary colors adjusted for dark mode */
+  --color-primary: var(--color-primary-400);
+  --color-primary-hover: var(--color-primary-300);
+  
+  /* Adjust semantic colors for dark mode */
+  --color-success: #22c55e;
+  --color-success-light: #14532d;
+  --color-warning: #f59e0b;
+  --color-warning-light: #451a03;
+  --color-error: #ef4444;
+  --color-error-light: #450a0a;
+  --color-info: #3b82f6;
+  --color-info-light: #1e3a8a;
+  
+  /* Shadows for dark mode */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+  
+  /* Work Code Status Colors for dark mode */
+  --status-inactive-bg: #374151;
+  --status-inactive-text: #9ca3af;
+  --status-active-bg: #14532d;
+  --status-active-text: #86efac;
+  --status-pending-bg: #451a03;
+  --status-pending-text: #fcd34d;
+  --status-archived-bg: #1f2937;
+  --status-archived-text: #9ca3af;
+}

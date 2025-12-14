@@ -40,7 +40,6 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-tabulator": "^0.21.0",
-    "SharedComponets": "file:../SharedComponets",
     "zephyr-rspack-plugin": "^0.0.50"
   }
 }

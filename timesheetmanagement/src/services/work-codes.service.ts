@@ -134,7 +134,7 @@ export class WorkCodeService extends CommonService<WorkCode> {
     data: UpdateWorkCodeRequest
   ): Promise<ApiResponse<WorkCode>> {
     // Use partial update for flexibility
-    return this.partialUpdate(id, data);
+    return this.update(id, data);
   }
 
   /**

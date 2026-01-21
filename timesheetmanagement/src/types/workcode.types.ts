@@ -1,14 +1,20 @@
 import { FieldConfig, ColumnConfig, ActionConfig } from './common.types';
 
-export interface WorkCode {
+export type CodeType = 'workCode' | 'accountCode';
+
+export interface WorkforceCode {
   work_code_id: number;
   prefix: string;
   suffix: string;
-  short_work_code: string;
-  long_work_code: string;
+  shortWorkforceCode: string;
+  longWorkforceCode: string;
   description: string;
   status: number;
+  effectiveDate: Date;
+  expirationDate: Date;
+  codeType: CodeType;
 }
+
 
 export interface WorkCodePageConfig {
   columns: Record<string, ColumnConfig>;

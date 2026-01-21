@@ -156,6 +156,8 @@ export const themeClasses = {
   
   surface: 'bg-[var(--color-surface)]',
   background: 'bg-[var(--color-background)]',
+
+  selectBackground: 'bg-purple-300',
   
   textPrimary: 'text-[var(--color-text)]',
   textSecondary: 'text-[var(--color-text-secondary)]',

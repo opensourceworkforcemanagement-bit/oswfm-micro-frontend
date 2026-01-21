@@ -9,7 +9,6 @@ import {
   HttpClient,
   CommonService,
   ApiResponse,
-  SearchParams,
 } from './common.services';
 
 // ============================================================================

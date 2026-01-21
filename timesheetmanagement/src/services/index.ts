@@ -16,25 +16,33 @@
 // ============================================================================
 
 export {
-  HttpClient,
-  CommonService,
-  BatchService,
   ApiResponse,
   RequestConfig,
   HttpClientConfig,
   TokenStorage,
   HttpMethod,
-  PaginationParams,
-  SearchParams,
-  HTTP_STATUS,
+  HttpClient,
   HttpStatus,
+  CommonService,
+  BatchService,
+  HTTP_STATUS,
   ApiError,
   NetworkError,
   TimeoutError,
   createHttpClient,
   createCommonService,
   createBatchService,
-} from './commonServices';
+} from './common.services';
+
+
+export{
+  BaseEntity,
+  FieldConfig,
+  ColumnConfig,
+  ActionConfig,
+  TabConfig,
+  PageConfig,
+} from '../types/common.types';
 
 // ============================================================================
 // User Service
@@ -49,7 +57,7 @@ export {
   ResetPasswordData,
   AuthResponse,
   createUserService,
-} from './user.service';
+} from './user.service.ts';
 
 // ============================================================================
 // ABAC API Service
@@ -106,8 +114,8 @@ export {
 // Default Configuration
 // ============================================================================
 
-import { createHttpClient, HttpClient } from './commonServices';
-import { createUserService, UserService } from './user.service';
+import { createHttpClient, HttpClient } from './common.services';
+import { createUserService, UserService } from './user.service.ts';
 import { createAbacApiService, AbacApiService } from './abac-api.service';
 import { createClientPolicyEvaluator, ClientPolicyEvaluator } from './client-policy-evaluator.service';
 

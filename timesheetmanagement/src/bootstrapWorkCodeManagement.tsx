@@ -1,5 +1,5 @@
 import ReactDOM from "react-dom/client";
-import WorkCodeManagement from "./WorkCodeManagement";
+import WorkCodeManagement from "./pages/WorkCodeManagement";
 
 const container = document.getElementById("workcode");
 if (container) {

@@ -72,6 +72,14 @@ export class WorkCodeConfigManager extends BaseConfigManager<WorkCodePageConfig>
         status: { 
           visible: true, 
           label: 'Status' 
+        },
+        effective_date: { 
+          visible: true, 
+          label: 'Effective Date' 
+        },
+        expiration_date: { 
+          visible: true, 
+          label: 'Expiration Date' 
         }
       },
       fields: {
@@ -82,7 +90,7 @@ export class WorkCodeConfigManager extends BaseConfigManager<WorkCodePageConfig>
           visible: true,
           label: 'Prefix',
           hint: 'Maximum 10 characters',
-          required: false
+          required: false          
         },
         suffix: { 
           tab: ['general'],
@@ -127,7 +135,32 @@ export class WorkCodeConfigManager extends BaseConfigManager<WorkCodePageConfig>
           visible: true,
           label: 'Status',
           hint: '',
-          required: false
+          required: false,
+          options: [ 
+            { value: 0, label: 'Inactive' },
+            { value: 1, label: 'Active' },
+            { value: 2, label: 'Pending' },
+            { value: 3, label: 'Archived' }]
+        },
+        effective_date: { 
+          tab: ['general'],
+          enabled: true, 
+          readonly: false, 
+          visible: true,
+          label: 'Effective Date',
+          hint: 'Required',
+          required: true,
+          type: 'date'
+        },
+        expiration_date: { 
+          tab: ['general'],
+          enabled: true, 
+          readonly: false, 
+          visible: true,
+          label: 'Expiration Date',
+          hint: 'Optional',
+          required: false,
+          type: 'date'
         }
       },
       actions: {

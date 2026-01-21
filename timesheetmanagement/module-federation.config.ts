@@ -5,7 +5,7 @@ export const mfConfig = {
   filename: "remoteEntry.js",
   exposes: {
     "./App": "./src/App",
-    "./WorkCodeManagement": "./src/WorkCodeManagement",
+    "./WorkCodeManagement": "./src/pages/WorkCodeManagement",
   },
   shared: {
   react: { singleton: true, requiredVersion: deps.react, eager: false },

@@ -3,6 +3,8 @@
 // Base Configuration Manager - Abstract class for all config managers
 // ============================================================================
 
+import { FieldConfig, ColumnConfig, ActionConfig, PaginationConfig, TabConfig } from "../types/common.types";
+
 export abstract class BaseConfigManager<T> {
   /**
    * Get API base URL from environment variables
@@ -112,6 +114,41 @@ export abstract class BaseConfigManager<T> {
   protected validateConfig(config: T): boolean {
     return config !== null && config !== undefined;
   }
+
+getColumnConfig(key: string): ColumnConfig | undefined {
+    return this.getDefaultPageConfig().columns[key];
+  }
+
+  getFieldConfig(key: string): FieldConfig | undefined {
+    return this.getDefaultPageConfig().fields[key];
+  }
+
+  getActionConfig(key: string): ActionConfig | undefined {
+    return this.getDefaultPageConfig().actions[key];
+  }
+
+  getVisibleColumns(): string[] {
+    const config = this.getDefaultPageConfig();
+    return Object.entries(config.columns)
+      .filter(([_, c]) => c.visible)
+      .map(([k]) => k);
+  }
+
+  getVisibleFields(): string[] {
+    const config = this.getDefaultPageConfig();
+    return Object.entries(config.fields)
+      .filter(([_, f]) => f.visible)
+      .map(([k]) => k);
+  }
+
+  getVisibleTabs(): TabConfig[] {
+    return this.getDefaultPageConfig().tabs.filter(tab => tab.visible);
+  }
+
+  getPaginationConfig() {
+    return this.getDefaultPageConfig().pagination;
+  }
+
 }
 
 /**

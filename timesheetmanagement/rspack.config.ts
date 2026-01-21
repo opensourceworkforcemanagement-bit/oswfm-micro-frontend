@@ -19,6 +19,9 @@ export default defineConfig({
   },
   resolve: {
     extensions: ["...", ".ts", ".tsx", ".jsx"],
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+    },
   },
 
   devServer: {

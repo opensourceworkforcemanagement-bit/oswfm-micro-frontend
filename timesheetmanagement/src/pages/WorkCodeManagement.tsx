@@ -3,26 +3,30 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Select from '@radix-ui/react-select';
 import * as Label from '@radix-ui/react-label';
+import { Flex, Text, Button } from "@radix-ui/themes";
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { ArrowLeft, Plus, Pencil, Trash2, ChevronDown, Loader2, Search, Check, AlertCircle } from 'lucide-react';
 import { ReactTabulator } from 'react-tabulator';
 import 'react-tabulator/css/tabulator.min.css';
 import 'react-tabulator/css/bootstrap/tabulator_bootstrap.min.css';
-import './themes/brand-a.css';
-import './index.css';
+import '../themes/brand-a.css';
+import '../index.css';
+
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 // Import centralized styles
-import { commonClasses, themeClasses, combineClasses } from './styles/styles.classes';
+import { commonClasses, themeClasses, combineClasses } from '../styles/styles.classes.ts';
 
 // Import services
-import { WorkCodeService } from './services/work-codes.service';
-import { HttpClient } from './services/common.services';
+import { WorkCodeService } from '../services/work-codes.service.ts';
+import { HttpClient } from '../services/common.services.ts';
 
 // Import types
-import { WorkCode, WorkCodePageConfig } from './types/workcode.types.ts';
+import { WorkCode, WorkCodePageConfig } from '../types/workcode.types.ts';
 
 // Import configuration
-import { WorkCodeConfigManager } from './config/workcode.config.ts';
+import { WorkCodeConfigManager } from '../config/workcode.config.ts';
 
 // Initialize service
 const httpClient = new HttpClient({ baseURL: 'http://localhost:1110/api/v1' });
@@ -119,7 +123,7 @@ const WorkCodeList: React.FC<{
             Work Code Directory
           </h1>
           {addActionConfig.visible && (
-            <button
+            <Button
               onClick={onAddNew}
               disabled={!addActionConfig.enabled}
               className={combineClasses(
@@ -135,7 +139,7 @@ const WorkCodeList: React.FC<{
             >
               <Plus size={16} />
               Add Work Code
-            </button>
+            </Button>
           )}
         </div>
 
@@ -192,7 +196,7 @@ const WorkCodeList: React.FC<{
                 ...visibleColumns.map(col => ({
                   title: col.label,
                   field: col.key,
-                  headerFilter: 'input',
+                  //headerFilter: 'input',
                   sorter: 'string',
                   tooltip: true,
                   formatter:
@@ -218,23 +222,23 @@ const WorkCodeList: React.FC<{
                           return `
                             <div style="display: flex; gap: 8px; justify-content: center;">
                               ${editActionConfig.visible && editActionConfig.enabled
-                                ? `<button class="edit-btn" data-id="${data.work_code_id}" 
+                                ? `<Button class="edit-btn" data-id="${data.work_code_id}" 
                                     style="padding: 6px; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer;">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                     </svg>
-                                  </button>`
+                                  </Button>`
                                 : ''
                               }
                               ${deleteActionConfig.visible && deleteActionConfig.enabled
-                                ? `<button class="delete-btn" data-id="${data.work_code_id}"
+                                ? `<Button class="delete-btn" data-id="${data.work_code_id}"
                                     style="padding: 6px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                       <polyline points="3 6 5 6 21 6"></polyline>
                                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                     </svg>
-                                  </button>`
+                                  </Button>`
                                 : ''
                               }
                             </div>
@@ -292,7 +296,7 @@ const WorkCodeList: React.FC<{
               </AlertDialog.Description>
               <div className="flex justify-end gap-3">
                 <AlertDialog.Cancel asChild>
-                  <button
+                  <Button
                     disabled={isDeleting}
                     className={combineClasses(
                       commonClasses.secondaryButton,
@@ -304,10 +308,10 @@ const WorkCodeList: React.FC<{
                     }}
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </AlertDialog.Cancel>
                 <AlertDialog.Action asChild>
-                  <button
+                  <Button
                     onClick={handleDelete}
                     disabled={isDeleting}
                     className={combineClasses(commonClasses.dangerButton, 'flex items-center gap-2')}
@@ -318,7 +322,7 @@ const WorkCodeList: React.FC<{
                   >
                     {isDeleting && <Loader2 className="animate-spin" size={16} />}
                     {isDeleting ? 'Deleting...' : 'Delete'}
-                  </button>
+                  </Button>
                 </AlertDialog.Action>
               </div>
             </AlertDialog.Content>
@@ -354,7 +358,7 @@ const WorkCodeForm: React.FC<{
   const saveAction = pageConfig.actions.add;
   const cancelAction = { enabled: true, visible: true };
 
-  const updateField = (field: string, value: string | number) => {
+  const updateField = (field: string, value: string | number | Date) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -448,7 +452,7 @@ const WorkCodeForm: React.FC<{
               <Select.Content 
                 className={combineClasses(
                   commonClasses.workCodeSelectContent,
-                  themeClasses.background,
+                  themeClasses.selectBackground,
                   themeClasses.border
                 )}
               >
@@ -517,6 +521,35 @@ const WorkCodeForm: React.FC<{
       );
     }
 
+    if (fieldConfig.type === 'date') {
+        return (
+              <div key={fieldName} className={commonClasses.workCodeFieldWrapper}>
+                <Label.Root 
+                  htmlFor={inputId} 
+                  className={combineClasses(commonClasses.workCodeFieldLabel, themeClasses.textSecondary)}
+                >
+                  {fieldConfig.label} 
+                  {fieldConfig.required && <span className="text-red-600">*</span>}
+                </Label.Root>
+                <DatePicker selected={formData[fieldName as keyof typeof formData] ? new Date(formData[fieldName as keyof typeof formData]) : ''} onChange={
+                  (date) =>  updateField(fieldName, date)
+                
+                } 
+                className={combineClasses(
+                    commonClasses.workCodeFieldInput,
+                    isDisabled ? themeClasses.surface : themeClasses.background,
+                    themeClasses.border,
+                    themeClasses.textPrimary
+                  )}
+                  style={{
+                    cursor: isDisabled ? 'not-allowed' : 'text',
+                    opacity: isDisabled ? 0.6 : 1
+                  }}
+                />
+              </div>
+        );
+    }
+
     return (
       <div key={fieldName} className={commonClasses.workCodeFieldWrapper}>
         <Label.Root 
@@ -558,13 +591,13 @@ const WorkCodeForm: React.FC<{
       <div className={commonClasses.workCodePageInner}>
         {/* Header */}
         <div className={commonClasses.workCodeFormHeader}>
-          <button
+          <Button
             onClick={onCancel}
             className={combineClasses(commonClasses.workCodeBackButton, themeClasses.textPrimary)}
             aria-label="Go back"
           >
             <ArrowLeft size={24} />
-          </button>
+          </Button>
           <h1 className={combineClasses(commonClasses.workCodeFormTitle, themeClasses.textPrimary)}>
             {isNew ? 'Add New Work Code' : 'Edit Work Code'}
           </h1>
@@ -617,6 +650,7 @@ const WorkCodeForm: React.FC<{
               <Tabs.Content value="general">
                 <div className={commonClasses.workCodeFormGrid}>
 
+                 
                   {(() => {
                     const elements = [];
                     for (const [key, config] of Object.entries(pageConfig.fields)) {
@@ -644,7 +678,7 @@ const WorkCodeForm: React.FC<{
             themeClasses.surface
           )}>
             {cancelAction?.visible && (
-              <button
+              <Button
                 onClick={onCancel}
                 disabled={!cancelAction.enabled || isSubmitting}
                 className={combineClasses(
@@ -659,10 +693,10 @@ const WorkCodeForm: React.FC<{
                 }}
               >
                 Cancel
-              </button>
+              </Button>
             )}
             {saveAction?.visible && (
-              <button
+              <Button
                 onClick={handleSave}
                 disabled={!saveAction.enabled || isSubmitting}
                 className={combineClasses(
@@ -678,7 +712,7 @@ const WorkCodeForm: React.FC<{
               >
                 {isSubmitting && <Loader2 className="animate-spin" size={16} />}
                 {isSubmitting ? 'Saving...' : 'Save'}
-              </button>
+              </Button>
             )}
           </div>
         </div>

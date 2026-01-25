@@ -2,8 +2,7 @@ import * as path from "node:path";
 import { rspack } from "@rspack/core";
 import * as RefreshPlugin from "@rspack/plugin-react-refresh";
 import { ModuleFederationPlugin } from "@module-federation/enhanced/rspack";
-import { withZephyr } from "zephyr-rspack-plugin";
-
+import { defineConfig } from "@rspack/cli";
 import { mfConfig } from "./module-federation.config";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -11,12 +10,15 @@ const isDev = process.env.NODE_ENV === "development";
 // Target browsers, see: https://github.com/browserslist/browserslist
 const targets = ["chrome >= 87", "edge >= 88", "firefox >= 78", "safari >= 14"];
 
-export default withZephyr()({
+export default defineConfig({
   context: __dirname,
   entry: {
     main: "./src/index.ts",
   },
   resolve: {
+    alias: {
+     "SharedLibrary": path.resolve(__dirname, "../../SharedLibrary/src/components/"),
+    },
     extensions: ["...", ".ts", ".tsx", ".jsx"],
   },
 

@@ -7,11 +7,14 @@ import * as Select from '@radix-ui/react-select';
 import * as Switch from '@radix-ui/react-switch';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import './index.css'
-const UserManagementComp = React.lazy(() => import('usermanagement/App'));
+import LoginPage from "./pages/LoginPage";
+const UserManagementComp = React.lazy(() => import('usermanagement/UserManagement'));
 const WorkCodeManagementComp = React.lazy(() => import('timesheetmanagement/WorkCodeManagement'));
+const TimesheetManagementComp = React.lazy(() => import('timesheetmanagement/TimesheetManagement'));
 
 // Shared State Context
 const SharedStateContext = createContext();
+const LoginContext = createContext();
 
 // Event Bus
 class EventBus {
@@ -46,7 +49,8 @@ function SharedStateProvider({ children }) {
     notifications: [],
     theme: 'light',
     selectedRole: null,
-    selectedUser: null
+    selectedUser: null, 
+    isLoginedIn: false
   });
 
   const updateSharedState = (key, value) => {
@@ -108,6 +112,14 @@ function useSharedState() {
   return context;
 }
 
+function useLoginContext() {
+  const context = useContext(LoginContext);
+  if (!context) {
+    throw new Error('useLoginContext must be used within LoginContextProvider');
+  }
+  return context;
+}
+
 // Dashboard Module
 const Dashboard = () => {
   const { sharedState } = useSharedState();
@@ -129,7 +141,7 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-4 sm:p-6" id="dashboard">
       <div className="mb-4 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="flex items-center gap-2 text-xs sm:text-sm text-blue-800">
           <Share2 size={16} className="flex-shrink-0" />
@@ -382,6 +394,7 @@ const microFrontends = {
   roles: { component: Roles, name: 'Roles', icon: PersonStandingIcon, path: '/roles' },
   users: { component: UserManagementComp, name: 'Users', icon: Users, path: '/users' },
   workcodes: { component: WorkCodeManagementComp, name: 'Work Codes', icon: Activity, path: '/workcodes' },
+  timesheet: { component: TimesheetManagementComp, name: 'Timesheet Management', icon: Check, path: '/timesheet' },
   settings: { component: SettingsModule, name: 'Settings', icon: Settings, path: '/settings' }
 };
 
@@ -432,7 +445,7 @@ function MobileMenu({ open, onOpenChange }) {
 }
 
 // Layout Component (contains sidebar and header)
-function Layout({ children }) {
+function Layout({ children, onLogout }) {
   const { sharedState } = useSharedState();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -474,6 +487,12 @@ function Layout({ children }) {
         <div className="p-4 border-t border-gray-800">
           <div className="text-xs text-gray-400 space-y-2">
             <div>Current Selection: <span className="text-white font-medium">{getCurrentModuleName()}</span></div>
+            <button
+              onClick={onLogout}
+              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-200 transition transform active:scale-95"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </div>
@@ -551,23 +570,88 @@ function Layout({ children }) {
   );
 }
 
+
 // Main Host Application with Router
-function MicroFrontendHost() {
+export default function MicroFrontendHost() {
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // if (!isAuthenticated) {
+  //   return <LoginPage onLogin={() => setIsAuthenticated(true)} />;
+  // }
+
   return (
-    <BrowserRouter>
-      <SharedStateProvider>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/users/*" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><UserManagementComp /></React.Suspense>} />
-            <Route path="/roles" element={<Roles />} />
-            <Route path="/workcodes/*" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><WorkCodeManagementComp /></React.Suspense>} />
-            <Route path="/settings" element={<SettingsModule />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Layout>
-      </SharedStateProvider>
+    // <BrowserRouter>
+    //   <SharedStateProvider>
+    //     <Layout onLogout={() => setIsAuthenticated(false)}>
+    //       <Routes>
+    //         <Route path="/" element={<Dashboard />} />
+    //         <Route path="/users/*" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><UserManagementComp /></React.Suspense>} />
+    //         <Route path="/roles" element={<Roles />} />
+    //         <Route path="/workcodes/*" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><WorkCodeManagementComp /></React.Suspense>} />
+    //         <Route path="/settings" element={<SettingsModule />} />
+    //         <Route path="*" element={<Navigate to="/" replace />} />
+    //       </Routes>
+    //     </Layout>
+    //   </SharedStateProvider>
+    // </BrowserRouter>
+
+     <BrowserRouter>
+      <Routes>
+        {/* Login route - accessible when not authenticated */}
+        <Route 
+          path="/login" 
+          element={
+            isAuthenticated ? (
+              <Navigate to="/" replace />
+            ) : (
+              <LoginPage onLogin={() => setIsAuthenticated(true)} />
+            )
+          } 
+        />
+
+        {/* Protected routes - redirect to login if not authenticated */}
+        <Route
+          path="/*"
+          element={
+            (
+              <SharedStateProvider>
+                <Layout onLogout={() => setIsAuthenticated(false)}>
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route 
+                      path="/users/*" 
+                      element={
+                        <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                          <UserManagementComp />
+                        </React.Suspense>
+                      } 
+                    />
+                    <Route path="/roles" element={<Roles />} />
+                    <Route 
+                      path="/workcodes/*" 
+                      element={
+                        <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                          <WorkCodeManagementComp />
+                        </React.Suspense>
+                      } 
+                    />
+                    <Route path="/timesheet/*" element={
+                      <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                        <TimesheetManagementComp />
+                      </React.Suspense>
+                    } />
+                    <Route path="/settings" element={<SettingsModule />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Layout>
+              </SharedStateProvider> 
+            ) 
+          }
+        />
+      </Routes>
     </BrowserRouter>
+
   );
 }
 

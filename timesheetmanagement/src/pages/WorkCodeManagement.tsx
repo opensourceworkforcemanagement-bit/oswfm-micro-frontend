@@ -19,7 +19,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { commonClasses, themeClasses, combineClasses } from '../styles/styles.classes.ts';
 
 // Import services
-import { WorkCode, WorkCodeService } from '../services/work-codes.service.ts';
+import { WorkCodeService } from '../services/work-codes.service.ts';
 import { HttpClient } from '../services/common.services.ts';
 
 // Import types
@@ -730,12 +730,11 @@ const WorkCodeManagement: React.FC<WorkCodeManagementProps> = ({
   pageConfig = WorkCodeConfigManager.getDefaultPageConfig(),
   theme = 'brand-a'
 }) => {
-  const [workCodes, setWorkCodes] = useState<WorkCode[]>([]);
+  const [workCodes, setWorkCodes] = useState<WorkforceCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<'list' | 'form'>('list');
-  const [selectedWorkCode, setSelectedWorkCode] = useState<WorkCode | null>(null);
-
+  const [selectedWorkCode, setSelectedWorkCode] = useState<WorkforceCode | null>(null);
   useEffect(() => {
     fetchWorkCodes();
   }, []);
@@ -761,7 +760,7 @@ const WorkCodeManagement: React.FC<WorkCodeManagementProps> = ({
     }
   };
 
-  const handleSelectWorkCode = (workCode: WorkCode) => {
+  const handleSelectWorkCode = (workCode: WorkforceCode) => {
     setSelectedWorkCode(workCode);
     setCurrentPage('form');
   };
@@ -771,7 +770,7 @@ const WorkCodeManagement: React.FC<WorkCodeManagementProps> = ({
     setCurrentPage('form');
   };
 
-  const handleSave = async (data: Omit<WorkCode, 'work_code_id'>) => {
+  const handleSave = async (data: Omit<WorkforceCode, 'work_code_id'>) => {
     try {
       if (selectedWorkCode) {
         // Update existing

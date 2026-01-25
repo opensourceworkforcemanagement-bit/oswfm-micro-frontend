@@ -18,7 +18,6 @@ export interface WorkforceCode {
   codeType: CodeType;
 }
 
-
 export interface WorkCodePageConfig {
   columns: Record<string, ColumnConfig>;
   fields: Record<string, FieldConfig>;

@@ -70,6 +70,7 @@ export class WorkCodeService extends CommonService<WorkforceCode> {
   // Specialized Work Code Methods
   // =========================================================================
 
+
   /**
    * Get all work codes with optional filters
    */

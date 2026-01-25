@@ -1,2 +1,3 @@
-if (document.getElementById("workcode")) import("./bootstrapWorkCodeManagement");
-if (document.getElementById("app")) import("./bootstrapApp");
+// Dynamic import for module federation compatibility
+// When shared dependencies are configured, async import ensures proper initialization order
+import("./bootstrapTimesheetManagement");

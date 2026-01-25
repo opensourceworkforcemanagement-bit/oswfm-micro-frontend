@@ -8,6 +8,8 @@ import { withZephyr } from "zephyr-rspack-plugin";
 import { mfConfig } from "./module-federation.config";
 
 const isDev = process.env.NODE_ENV === "development";
+// Set STANDALONE=true to run without module federation (for isolated development)
+const isStandalone = process.env.STANDALONE === "true";
 
 // Target browsers, see: https://github.com/browserslist/browserslist
 const targets = ["chrome >= 87", "edge >= 88", "firefox >= 78", "safari >= 14"];
@@ -81,7 +83,8 @@ export default defineConfig({
     new rspack.HtmlRspackPlugin({
       template: "./index.html",
     }),
-    new ModuleFederationPlugin(mfConfig),
+    // Only include ModuleFederationPlugin when not running standalone
+    !isStandalone ? new ModuleFederationPlugin(mfConfig) : null,
     isDev ? new RefreshPlugin() : null,
   ].filter(Boolean),
   optimization: {

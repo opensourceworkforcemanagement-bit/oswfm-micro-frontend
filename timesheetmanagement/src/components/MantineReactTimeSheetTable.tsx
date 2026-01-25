@@ -17,31 +17,12 @@ import 'mantine-react-table/styles.css';
 import '../styles/App.css';
 import React from "react";
 import { WorkforceCode } from '@/types/workcode.types';
+import { TimesheetEntry, Weeks } from '@/types/timesheet.types';
 
 // Types
 interface CustomColumnMeta extends MRT_Column<TimesheetEntry> {
   weekIndex?: number;
   dayKey?: keyof Weeks;
-}
-
-interface Weeks {
-  week: number;
-  sunHours: number;
-  monHours: number;
-  tueHours: number;
-  wedHours: number;
-  thuHours: number;
-  friHours: number;
-  satHours: number;
-}
-
-export interface TimesheetEntry {
-  timesheetEntryId?: number;
-  timesheetId?: number;
-  payperiodId?: number;
-  workforceCode?: WorkforceCode;
-  accountCode?: WorkforceCode;
-  weeks: Weeks[];
 }
 
 // Calculate total hours for a single week
@@ -62,88 +43,13 @@ function calculateRowTotal(entry: TimesheetEntry): number {
   return entry.weeks.reduce((total, week) => total + calculateWeekTotal(week), 0);
 }
 
-// Sample workforce codes for selection - Work Codes
-const availableWorkCodes: WorkforceCode[] = [
-  { work_code_id: 101, prefix: 'GEN', suffix: '001', shortWorkforceCode: 'GEN001', longWorkforceCode: 'General Operations', description: 'General Operations Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2025-12-31'), codeType: 'workCode' },
-  { work_code_id: 102, prefix: 'RND', suffix: '001', shortWorkforceCode: 'RND001', longWorkforceCode: 'Research & Development', description: 'R&D Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2025-12-31'), codeType: 'workCode' },
-  { work_code_id: 103, prefix: 'MKT', suffix: '001', shortWorkforceCode: 'MKT001', longWorkforceCode: 'Marketing', description: 'Marketing Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2025-12-31'), codeType: 'workCode' },
-  { work_code_id: 104, prefix: 'LV', suffix: '001', shortWorkforceCode: 'LV001', longWorkforceCode: 'Paid Time Off', description: 'PTO Leave', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2025-12-31'), codeType: 'workCode' },
-  { work_code_id: 105, prefix: 'TRN', suffix: '001', shortWorkforceCode: 'TRN001', longWorkforceCode: 'Training & Development', description: 'Training Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2025-12-31'), codeType: 'workCode' },
-];
+interface MantineReactTimeSheetTableProps {
+  availableAccountCodes: WorkforceCode[];
+  availableWorkforceCodes: WorkforceCode[];
+  initialData: TimesheetEntry[];  
+}
 
-// Sample workforce codes for selection - Account Codes
-const availableAccountCodes: WorkforceCode[] = [
-  { work_code_id: 201, prefix: 'ADM', suffix: '001', shortWorkforceCode: 'ADM001', longWorkforceCode: 'Administrative', description: 'Admin Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2025-12-31'), codeType: 'accountCode' },
-  { work_code_id: 202, prefix: 'PRJ', suffix: '001', shortWorkforceCode: 'PRJ001', longWorkforceCode: 'Project Alpha', description: 'Project Alpha Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2025-12-31'), codeType: 'accountCode' },
-  { work_code_id: 203, prefix: 'PRJ', suffix: '002', shortWorkforceCode: 'PRJ002', longWorkforceCode: 'Project Beta', description: 'Project Beta Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2025-12-31'), codeType: 'accountCode' },
-  { work_code_id: 204, prefix: 'MNT', suffix: '001', shortWorkforceCode: 'MNT001', longWorkforceCode: 'Maintenance', description: 'Maintenance Work', status: 0, effectiveDate: new Date('2023-01-01'), expirationDate: new Date('2024-06-30'), codeType: 'accountCode' },
-  { work_code_id: 205, prefix: 'SUP', suffix: '001', shortWorkforceCode: 'SUP001', longWorkforceCode: 'Customer Support', description: 'Support Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'accountCode' },
-];
-
-
-
-
-
-// Sample timesheet data
-const initialData: TimesheetEntry[] = [
-  {
-    timesheetEntryId: 1,
-    timesheetId: 100,
-    payperiodId: 1,
-    workforceCode: availableWorkCodes[0], // GEN001
-    accountCode: availableAccountCodes[1], // RND001
-    weeks: [
-      { week: 1, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 8, satHours: 0 },
-      { week: 2, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 8, satHours: 0 },
-    ],
-  },
-  {
-    timesheetEntryId: 2,
-    timesheetId: 100,
-    payperiodId: 1,
-    workforceCode: availableWorkCodes[1], // RND001
-    accountCode: availableAccountCodes[2], // MKT001
-    weeks: [
-      { week: 1, sunHours: 0, monHours: 7, tueHours: 7, wedHours: 7, thuHours: 7, friHours: 7, satHours: 0 },
-      { week: 2, sunHours: 0, monHours: 6, tueHours: 6, wedHours: 6, thuHours: 6, friHours: 6, satHours: 0 },
-    ],
-  },
-  {
-    timesheetEntryId: 3,
-    timesheetId: 100,
-    payperiodId: 1,
-    workforceCode: availableWorkCodes[2], // MKT001
-    accountCode: availableAccountCodes[0], // ADM001
-    weeks: [
-      { week: 1, sunHours: 4, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 8, satHours: 4 },
-      { week: 2, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 4, satHours: 0 },
-    ],
-  },
-  {
-    timesheetEntryId: 4,
-    timesheetId: 100,
-    payperiodId: 1,
-    workforceCode: availableWorkCodes[3], // LV001 (PTO)
-    accountCode: availableAccountCodes[3], // LV001
-    weeks: [
-      { week: 1, sunHours: 0, monHours: 0, tueHours: 0, wedHours: 0, thuHours: 0, friHours: 8, satHours: 0 },
-      { week: 2, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 0, thuHours: 0, friHours: 0, satHours: 0 },
-    ],
-  },
-  {
-    timesheetEntryId: 5,
-    timesheetId: 100,
-    payperiodId: 1,
-    workforceCode: availableWorkCodes[4], // TRN001 (Training)
-    accountCode: availableAccountCodes[4], // SUP001
-    weeks: [
-      { week: 1, sunHours: 0, monHours: 4, tueHours: 4, wedHours: 4, thuHours: 4, friHours: 4, satHours: 0 },
-      { week: 2, sunHours: 0, monHours: 0, tueHours: 0, wedHours: 4, thuHours: 4, friHours: 4, satHours: 0 },
-    ],
-  },
-];
-
-const MantineReactTimeSheetTable = () => {
+const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceCodes, initialData }: MantineReactTimeSheetTableProps) => {
   const [data, setData] = useState<TimesheetEntry[]>(initialData);
   const [workforceCodeModalOpened, { open: openWorkforceCodeModal, close: closeWorkforceCodeModal }] = useDisclosure(false);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
@@ -278,7 +184,7 @@ const MantineReactTimeSheetTable = () => {
                   setSelectedRowIndex(row.index);
                 }
                 setModalTitle('Select Work Code');
-                setAvailableWorkforceCode(availableWorkCodes);
+                setAvailableWorkforceCode(availableWorkforceCodes);
                 openWorkforceCodeModal();
               };
 
@@ -607,7 +513,7 @@ const MantineReactTimeSheetTable = () => {
             onClick={() => {
               const leaveEntry: TimesheetEntry = {
                 ...defaultNewEntry,
-                workforceCode: availableWorkCodes[3], // LV001 (PTO)
+                workforceCode: availableWorkforceCodes[3], // LV001 (PTO)
                 accountCode: availableAccountCodes[3], // MNT001 (using as Leave account)
               };
               table.setCreatingRow(

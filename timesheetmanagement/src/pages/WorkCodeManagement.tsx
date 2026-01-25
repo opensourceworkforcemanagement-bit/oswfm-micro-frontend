@@ -19,11 +19,11 @@ import "react-datepicker/dist/react-datepicker.css";
 import { commonClasses, themeClasses, combineClasses } from '../styles/styles.classes.ts';
 
 // Import services
-import { WorkCodeService } from '../services/work-codes.service.ts';
+import { WorkCode, WorkCodeService } from '../services/work-codes.service.ts';
 import { HttpClient } from '../services/common.services.ts';
 
 // Import types
-import { WorkCode, WorkCodePageConfig } from '../types/workcode.types.ts';
+import { WorkforceCode, WorkCodePageConfig } from '../types/workcode.types.ts';
 
 // Import configuration
 import { WorkCodeConfigManager } from '../config/workcode.config.ts';
@@ -39,9 +39,9 @@ interface WorkCodeManagementProps {
 
 // WorkCodeList Component (Directory View)
 const WorkCodeList: React.FC<{
-  workCodes: WorkCode[];
+  workCodes: WorkforceCode[];
   isLoading: boolean;
-  onSelectWorkCode: (workCode: WorkCode) => void;
+  onSelectWorkCode: (workCode: WorkforceCode) => void;
   onAddNew: () => void;
   onDelete: (id: number) => void;
   pageConfig: WorkCodePageConfig;
@@ -75,7 +75,7 @@ const WorkCodeList: React.FC<{
     
     return workCodes.filter(code => {
       return visibleFieldNames.some(fieldName => {
-        const value = code[fieldName as keyof WorkCode];
+        const value = code[fieldName as keyof WorkforceCode];
         if (value === null || value === undefined) return false;
 
         if (fieldName === 'status') {
@@ -335,19 +335,19 @@ const WorkCodeList: React.FC<{
 
 // WorkCodeForm Component (Add/Edit View)
 const WorkCodeForm: React.FC<{
-  workCode: WorkCode | null;
-  onSave: (data: Omit<WorkCode, 'work_code_id'>) => Promise<void>;
+  workCode: WorkforceCode | null;
+  onSave: (data: Omit<WorkforceCode, 'work_code_id'>) => Promise<void>;
   onCancel: () => void;
   isNew: boolean;
   pageConfig: WorkCodePageConfig;
   theme?: string;
 }> = ({ workCode, onSave, onCancel, isNew, pageConfig, theme }) => {
-  const [formData, setFormData] = useState<Omit<WorkCode, 'work_code_id'>>(
+  const [formData, setFormData] = useState<Omit<WorkforceCode, 'work_code_id'>>(
     workCode || {
       prefix: '',
       suffix: '',
-      short_work_code: '',
-      long_work_code:  '',
+      shortWorkforceCode: '',
+      longWorkforceCode: '',
       description: '',
       status: 1
     }
@@ -376,11 +376,15 @@ const WorkCodeForm: React.FC<{
     const requiredFields = Object.entries(pageConfig.fields)
       .filter(([_, config]) => config.required && config.visible);
 
+    const missingFields: string[] = [];
     for (const field of requiredFields) {
       if (!formData[field[0]]) {
-        setError(`${field[1].label} is required`);
-        return;
+        missingFields.push(field[1].label);
       }
+    }
+    if (missingFields.length > 0) {
+      setError(`Required fields missing: ${missingFields.join(', ')}`);
+      return;
     }
 
     setIsSubmitting(true);

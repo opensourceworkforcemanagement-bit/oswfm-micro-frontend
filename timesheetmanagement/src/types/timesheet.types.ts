@@ -1,27 +1,30 @@
 import { WorkforceCode } from './workcode.types';
 
-// export interface TimesheetEntry {
-//   timesheetEntryId?: number;
-//   timesheetId?: number;
-//   payperiodId?: number;
-//   workCodeId?: number;
-//   accountCodeId?: number;
-//   su1Hours: number;
-//   m1Hours: number;
-//   t1Hours: number;
-//   w1Hours: number;
-//   th1Hours: number;
-//   f1Hours: number;
-//   sa1Hours: number;
-//   su2Hours: number;
-//   m2Hours: number;
-//   t2Hours: number;
-//   w2Hours: number;
-//   th2Hours: number;
-//   f2Hours: number;
-//   sa2Hours: number;
-// }
+// Timesheet Status Types
+export type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | 'recalled';
 
+export interface Employee {
+  employeeId: number;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  department?: string;
+  employeeNumber?: string;
+}
+
+export interface PayPeriodType {
+  payPeriodTypeId: number;
+  payPeriodTypeName: string;
+  description?: string;
+}
+
+export interface PayPeriod {
+  payPeriodId: number;
+  payPeriodTypeId: number;
+  payPeriodType?: PayPeriodType;
+  startDate: Date;
+  endDate: Date;
+}
 
 export interface Weeks {
   week: number;
@@ -37,8 +40,36 @@ export interface Weeks {
 export interface TimesheetEntry {
   timesheetEntryId?: number;
   timesheetId?: number;
-  payperiodId?: number;
   workforceCode?: WorkforceCode;
   accountCode?: WorkforceCode;
   weeks: Weeks[];
 }
+
+export interface Timesheet {
+  timesheetId: number;
+  employeeId: number;
+  employee?: Employee;
+  payPeriodId: number;
+  payPeriod?: PayPeriod;
+  status: TimesheetStatus;
+  timesheetEntries: TimesheetEntry[];
+  submittedAt?: Date;
+  approvedAt?: Date;
+  approvedBy?: number;
+  comments?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// Summary type for directory listing
+export interface TimesheetSummary {
+  timesheetId: number;
+  employeeId: number;
+  employeeName: string;
+  payPeriodId: number;
+  payPeriodStartDate: Date;
+  payPeriodEndDate: Date;
+  status: TimesheetStatus;
+  totalHours: number;
+}
+

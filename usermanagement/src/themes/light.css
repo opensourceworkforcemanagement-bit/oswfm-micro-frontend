@@ -1,0 +1,15 @@
+/* packages/theme/src/themes/light.css */
+/* Light theme is the default - defined in tokens/index.css */
+/* This file exists for explicit imports and future overrides */
+
+[data-theme="light"] {
+  /* These match the :root defaults, but are here for completeness */
+  --color-background: var(--color-gray-50);
+  --color-surface: #ffffff;
+  --color-text: var(--color-gray-900);
+  --color-text-secondary: var(--color-gray-600);
+  --color-text-muted: var(--color-gray-400);
+  --color-border: var(--color-gray-200);
+  --color-primary: var(--color-primary-500);
+  --color-primary-hover: var(--color-primary-600);
+}

@@ -45,117 +45,143 @@ export class WorkCodeConfigManager extends BaseConfigManager<WorkCodePageConfig>
   static getDefaultPageConfig(): WorkCodePageConfig {
     return {
       columns: {
-        work_code_id: { 
-          visible: false, 
-          label: 'ID' 
+        id: {
+          visible: false,
+          label: 'ID'
         },
-        prefix: { 
-          visible: true, 
-          label: 'Prefix' 
+        codeId: {
+          visible: false,
+          label: 'Code ID'
         },
-        suffix: { 
-          visible: true, 
-          label: 'Suffix' 
+        codeTypeId: {
+          visible: false,
+          label: 'Code Type ID'
         },
-        short_work_code: { 
-          visible: true, 
-          label: 'Short Code' 
+        prefix: {
+          visible: true,
+          label: 'Prefix'
         },
-        long_work_code: { 
-          visible: true, 
-          label: 'Long Code' 
+        suffix: {
+          visible: true,
+          label: 'Suffix'
         },
-        description: { 
-          visible: true, 
-          label: 'Description' 
+        shortCodeValue: {
+          visible: true,
+          label: 'Short Code'
         },
-        status: { 
-          visible: true, 
-          label: 'Status' 
+        longCodeValue: {
+          visible: true,
+          label: 'Long Code'
         },
-        effective_date: { 
-          visible: true, 
-          label: 'Effective Date' 
+        description: {
+          visible: true,
+          label: 'Description'
         },
-        expiration_date: { 
-          visible: true, 
-          label: 'Expiration Date' 
+        status: {
+          visible: true,
+          label: 'Status'
+        },
+        effectiveDate: {
+          visible: true,
+          label: 'Effective Date'
+        },
+        expirationDate: {
+          visible: true,
+          label: 'Expiration Date'
         }
       },
       fields: {
-        prefix: { 
+        codeId: {
           tab: ['general'],
-          enabled: true, 
-          readonly: false, 
+          enabled: true,
+          readonly: false,
+          visible: true,
+          label: 'Code ID',
+          hint: 'Required',
+          required: true
+        },
+        codeTypeId: {
+          tab: ['general'],
+          enabled: true,
+          readonly: false,
+          visible: true,
+          label: 'Code Type ID',
+          hint: 'Required',
+          required: true
+        },
+        prefix: {
+          tab: ['general'],
+          enabled: true,
+          readonly: false,
           visible: true,
           label: 'Prefix',
           hint: 'Maximum 10 characters',
-          required: false          
+          required: false
         },
-        suffix: { 
+        suffix: {
           tab: ['general'],
-          enabled: true, 
-          readonly: false, 
+          enabled: true,
+          readonly: false,
           visible: true,
           label: 'Suffix',
           hint: 'Maximum 10 characters',
           required: false
         },
-        short_work_code: { 
+        shortCodeValue: {
           tab: ['general'],
-          enabled: true, 
-          readonly: false, 
+          enabled: true,
+          readonly: false,
           visible: true,
-          label: 'Short Work Code',
+          label: 'Short Code Value',
           hint: 'Required, maximum 10 characters',
           required: true
         },
-        long_work_code: { 
+        longCodeValue: {
           tab: ['general'],
-          enabled: true, 
-          readonly: false, 
+          enabled: true,
+          readonly: false,
           visible: true,
-          label: 'Long Work Code',
-          hint: 'Required, maximum 50 characters',
+          label: 'Long Code Value',
+          hint: 'Required, maximum 255 characters',
           required: true
         },
-        description: { 
+        description: {
           tab: ['details'],
-          enabled: true, 
-          readonly: false, 
+          enabled: true,
+          readonly: false,
           visible: true,
           label: 'Description',
           hint: 'Optional detailed description',
           required: false
         },
-        status: { 
+        status: {
           tab: ['general'],
-          enabled: true, 
-          readonly: false, 
+          enabled: true,
+          readonly: false,
           visible: true,
           label: 'Status',
           hint: '',
           required: false,
-          options: [ 
+          options: [
             { value: 0, label: 'Inactive' },
             { value: 1, label: 'Active' },
             { value: 2, label: 'Pending' },
             { value: 3, label: 'Archived' }]
         },
-        effective_date: { 
+        effectiveDate: {
           tab: ['general'],
-          enabled: true, 
-          readonly: false, 
+          enabled: true,
+          readonly: false,
           visible: true,
           label: 'Effective Date',
           hint: 'Required',
           required: true,
           type: 'date'
         },
-        expiration_date: { 
+        expirationDate: {
           tab: ['general'],
-          enabled: true, 
-          readonly: false, 
+          enabled: true,
+          readonly: false,
           visible: true,
           label: 'Expiration Date',
           hint: 'Optional',
@@ -382,13 +408,13 @@ export const workCodeConfigManager = WorkCodeConfigManager.getInstance();
 
 /**
  * Example 2: Getting specific configurations
- * 
+ *
  * const visibleColumns = workCodeConfigManager.getVisibleColumns();
- * // Returns: ['work_code_id', 'prefix', 'suffix', ...]
- * 
- * const fieldConfig = workCodeConfigManager.getFieldConfig('short_work_code');
+ * // Returns: ['id', 'codeId', 'codeTypeId', 'prefix', 'suffix', ...]
+ *
+ * const fieldConfig = workCodeConfigManager.getFieldConfig('shortCodeValue');
  * // Returns: { enabled: true, readonly: false, visible: true, ... }
- * 
+ *
  * const actionConfig = workCodeConfigManager.getActionConfig('add');
  * // Returns: { enabled: true, visible: true }
  */

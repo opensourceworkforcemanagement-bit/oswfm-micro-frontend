@@ -24,6 +24,8 @@ export interface PayPeriod {
   payPeriodType?: PayPeriodType;
   startDate: Date;
   endDate: Date;
+  year: number;
+  periodNumber: number;
 }
 
 export interface Weeks {

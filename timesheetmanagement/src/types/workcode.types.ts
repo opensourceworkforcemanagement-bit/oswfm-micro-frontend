@@ -1,21 +1,20 @@
 import { FieldConfig, ColumnConfig, ActionConfig } from './common.types';
 
-export type CodeType = 'workCode' | 'accountCode';
-
 // Status type for WorkforceCode (0 = Inactive, 1 = Active, 2 = Pending, 3 = Archived)
 export type WorkforceCodeStatus = 0 | 1 | 2 | 3;
 
 export interface WorkforceCode {
-  work_code_id: number;
-  prefix: string;
-  suffix: string;
-  shortWorkforceCode: string;
-  longWorkforceCode: string;
+  id: number;
+  codeId: number;
+  codeTypeId: number;
+  prefix?: string;
+  suffix?: string;
+  shortCodeValue: string;
+  longCodeValue: string;
   description: string;
   status: number;
   effectiveDate: Date;
   expirationDate: Date;
-  codeType: CodeType;
 }
 
 export interface WorkCodePageConfig {

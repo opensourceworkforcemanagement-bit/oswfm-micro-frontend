@@ -222,7 +222,7 @@ const WorkCodeList: React.FC<{
                           return `
                             <div style="display: flex; gap: 8px; justify-content: center;">
                               ${editActionConfig.visible && editActionConfig.enabled
-                                ? `<Button class="edit-btn" data-id="${data.work_code_id}" 
+                                ? `<Button class="edit-btn" data-id="${data.id}"
                                     style="padding: 6px; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer;">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -232,7 +232,7 @@ const WorkCodeList: React.FC<{
                                 : ''
                               }
                               ${deleteActionConfig.visible && deleteActionConfig.enabled
-                                ? `<Button class="delete-btn" data-id="${data.work_code_id}"
+                                ? `<Button class="delete-btn" data-id="${data.id}"
                                     style="padding: 6px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                       <polyline points="3 6 5 6 21 6"></polyline>
@@ -262,7 +262,7 @@ const WorkCodeList: React.FC<{
 
                   if (editBtn) {
                     const id = editBtn.getAttribute('data-id');
-                    const workCode = filteredWorkCodes.find(wc => wc.work_code_id === parseInt(id!));
+                    const workCode = filteredWorkCodes.find(wc => wc.id === parseInt(id!));
                     if (workCode) onSelectWorkCode(workCode);
                   } else if (deleteBtn) {
                     const id = deleteBtn.getAttribute('data-id');
@@ -336,20 +336,24 @@ const WorkCodeList: React.FC<{
 // WorkCodeForm Component (Add/Edit View)
 const WorkCodeForm: React.FC<{
   workCode: WorkforceCode | null;
-  onSave: (data: Omit<WorkforceCode, 'work_code_id'>) => Promise<void>;
+  onSave: (data: Omit<WorkforceCode, 'id'>) => Promise<void>;
   onCancel: () => void;
   isNew: boolean;
   pageConfig: WorkCodePageConfig;
   theme?: string;
 }> = ({ workCode, onSave, onCancel, isNew, pageConfig, theme }) => {
-  const [formData, setFormData] = useState<Omit<WorkforceCode, 'work_code_id'>>(
+  const [formData, setFormData] = useState<Omit<WorkforceCode, 'id'>>(
     workCode || {
+      codeId: 0,
+      codeTypeId: 0,
       prefix: '',
       suffix: '',
-      shortWorkforceCode: '',
-      longWorkforceCode: '',
+      shortCodeValue: '',
+      longCodeValue: '',
       description: '',
-      status: 1
+      status: 1,
+      effectiveDate: new Date(),
+      expirationDate: new Date()
     }
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -770,15 +774,15 @@ const WorkCodeManagement: React.FC<WorkCodeManagementProps> = ({
     setCurrentPage('form');
   };
 
-  const handleSave = async (data: Omit<WorkforceCode, 'work_code_id'>) => {
+  const handleSave = async (data: Omit<WorkforceCode, 'id'>) => {
     try {
       if (selectedWorkCode) {
         // Update existing
-        const response = await workCodeService.updateWorkCode(selectedWorkCode.work_code_id, data);
-        
+        const response = await workCodeService.updateWorkCode(selectedWorkCode.id, data);
+
         if (response.success && response.data) {
-          setWorkCodes(prev => prev.map(wc => 
-            wc.work_code_id === selectedWorkCode.work_code_id ? response.data! : wc
+          setWorkCodes(prev => prev.map(wc =>
+            wc.id === selectedWorkCode.id ? response.data! : wc
           ));
         } else {
           throw new Error(response.message || 'Update failed');
@@ -811,7 +815,7 @@ const WorkCodeManagement: React.FC<WorkCodeManagementProps> = ({
       const response = await workCodeService.deleteWorkCode(id);
       
       if (response.success) {
-        setWorkCodes(prev => prev.filter(wc => wc.work_code_id !== id));
+        setWorkCodes(prev => prev.filter(wc => wc.id !== id));
       } else {
         throw new Error(response.message || 'Delete failed');
       }

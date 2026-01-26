@@ -12,37 +12,47 @@ import {
   SearchParams,
 } from './common.services';
 
-import { WorkforceCode, CodeType, WorkforceCodeStatus } from '../types/workcode.types';
+import { WorkforceCode, WorkforceCodeStatus } from '../types/workcode.types';
 
 export interface CreateWorkforceCodeRequest {
-  prefix: string;
-  suffix: string;
-  shortWorkforceCode: string;
-  longWorkforceCode: string;
+  codeId: number;
+  codeTypeId: number;
+  prefix?: string;
+  suffix?: string;
+  shortCodeValue: string;
+  longCodeValue: string;
   description?: string;
-  status?: WorkforceCodeStatus;
+  status?: number;
   effectiveDate?: Date;
   expirationDate?: Date;
-  codeType: CodeType;
 }
 
 export interface UpdateWorkforceCodeRequest {
+  codeId?: number;
+  codeTypeId?: number;
   prefix?: string;
   suffix?: string;
-  shortWorkforceCode?: string;
-  longWorkforceCode?: string;
+  shortCodeValue?: string;
+  longCodeValue?: string;
   description?: string;
-  status?: WorkforceCodeStatus;
+  status?: number;
   effectiveDate?: Date;
   expirationDate?: Date;
-  codeType?: CodeType;
 }
 
 export interface WorkforceCodeSearchFilters extends SearchParams {
   status?: WorkforceCodeStatus;
-  codeType?: CodeType;
+  codeTypeId?: number;
   effectiveDate?: string;
   isActive?: boolean;
+  expirationDate?: string;
+  codeId?: number;
+  statuses?: WorkforceCodeStatus[];
+  prefix?: string;
+  suffix?: string;
+  shortCodeValue?: string;
+  longCodeValue?: string;
+  description?: string;
 }
 
 // ============================================================================
@@ -51,7 +61,7 @@ export interface WorkforceCodeSearchFilters extends SearchParams {
 
 export class WorkCodeService extends CommonService<WorkforceCode> {
   constructor(client: HttpClient) {
-    super(client, 'work-codes');
+    super(client, 'workforce-codes');
   }
 
   // =========================================================================
@@ -131,8 +141,8 @@ export class WorkCodeService extends CommonService<WorkforceCode> {
   /**
    * Get work codes by code type
    */
-  async getWorkCodesByType(codeType: CodeType): Promise<ApiResponse<WorkforceCode[]>> {
-    return this.getAll({ codeType });
+  async getWorkCodesByType(codeTypeId: number): Promise<ApiResponse<WorkforceCode[]>> {
+    return this.getAll({ codeTypeId });
   }
 
   /**
@@ -255,13 +265,13 @@ export class WorkCodeService extends CommonService<WorkforceCode> {
    * Validate work code data
    */
   static validateWorkCode(data: CreateWorkforceCodeRequest | UpdateWorkforceCodeRequest): string | null {
-    // Validate shortWorkforceCode format
-    if ('shortWorkforceCode' in data && data.shortWorkforceCode) {
-      if (data.shortWorkforceCode.length < 2) {
-        return 'Short workforce code must be at least 2 characters long';
+    // Validate shortCodeValue format
+    if ('shortCodeValue' in data && data.shortCodeValue) {
+      if (data.shortCodeValue.length < 2) {
+        return 'Short code value must be at least 2 characters long';
       }
-      if (data.shortWorkforceCode.length > 50) {
-        return 'Short workforce code must not exceed 50 characters';
+      if (data.shortCodeValue.length > 10) {
+        return 'Short code value must not exceed 10 characters';
       }
     }
 
@@ -325,7 +335,7 @@ export class WorkCodeService extends CommonService<WorkforceCode> {
    * Format work code for display
    */
   static formatWorkCode(workCode: WorkforceCode): string {
-    const parts: string[] = [workCode.shortWorkforceCode];
+    const parts: string[] = [workCode.shortCodeValue];
 
     if (workCode.description) {
       parts.push(workCode.description);
@@ -340,7 +350,7 @@ export class WorkCodeService extends CommonService<WorkforceCode> {
   static parseWorkCode(formatted: string): Partial<WorkforceCode> {
     const parts = formatted.split(' - ');
     const result: Partial<WorkforceCode> = {
-      shortWorkforceCode: parts[0]?.trim(),
+      shortCodeValue: parts[0]?.trim(),
     };
 
     if (parts[1]) {
@@ -351,17 +361,17 @@ export class WorkCodeService extends CommonService<WorkforceCode> {
   }
 
   /**
-   * Group work codes by code type
+   * Group work codes by code type ID
    */
-  static groupByCodeType(workCodes: WorkforceCode[]): Record<string, WorkforceCode[]> {
+  static groupByCodeType(workCodes: WorkforceCode[]): Record<number, WorkforceCode[]> {
     return workCodes.reduce((acc, workCode) => {
-      const codeType = workCode.codeType || 'workCode';
-      if (!acc[codeType]) {
-        acc[codeType] = [];
+      const codeTypeId = workCode.codeTypeId;
+      if (!acc[codeTypeId]) {
+        acc[codeTypeId] = [];
       }
-      acc[codeType].push(workCode);
+      acc[codeTypeId].push(workCode);
       return acc;
-    }, {} as Record<string, WorkforceCode[]>);
+    }, {} as Record<number, WorkforceCode[]>);
   }
 
   /**
@@ -369,7 +379,7 @@ export class WorkCodeService extends CommonService<WorkforceCode> {
    */
   static sortByCode(workCodes: WorkforceCode[], ascending: boolean = true): WorkforceCode[] {
     return [...workCodes].sort((a, b) => {
-      const comparison = a.shortWorkforceCode.localeCompare(b.shortWorkforceCode);
+      const comparison = a.shortCodeValue.localeCompare(b.shortCodeValue);
       return ascending ? comparison : -comparison;
     });
   }
@@ -412,7 +422,7 @@ export class WorkCodeService extends CommonService<WorkforceCode> {
 
 export class WorkCodeBatchService extends BatchService<WorkforceCode> {
   constructor(client: HttpClient) {
-    super(client, 'work-codes');
+    super(client, 'workforce-codes');
   }
 
   /**
@@ -428,7 +438,7 @@ export class WorkCodeBatchService extends BatchService<WorkforceCode> {
         return {
           success: false,
           error: 'ValidationError',
-          message: `Invalid work code "${workCode.shortWorkforceCode}": ${validationError}`,
+          message: `Invalid work code "${workCode.shortCodeValue}": ${validationError}`,
           data: null,
         };
       }

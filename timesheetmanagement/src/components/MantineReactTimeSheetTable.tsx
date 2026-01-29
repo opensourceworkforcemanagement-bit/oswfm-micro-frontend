@@ -59,11 +59,12 @@ const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceC
   const [modalTitle, setModalTitle] = useState<string>('');
 
   // Handle workforce code selection
+  // codeTypeId: 1 = Work Code, 2 = Account Code
   const handleWorkforceCodeSelect = (workforceCode: WorkforceCode) => {
     if (isCreatingRow && creatingRowData) {
       // For creating rows, update via state to trigger re-render
       const updatedEntry = { ...creatingRowData };
-      if (workforceCode.codeType === 'accountCode') {
+      if (workforceCode.codeTypeId === 2) {
         updatedEntry.accountCode = workforceCode;
       } else {
         updatedEntry.workforceCode = workforceCode;
@@ -74,7 +75,7 @@ const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceC
       setData((prev) => {
         const newData = [...prev];
         const entry = { ...newData[selectedRowIndex] };
-        if (workforceCode.codeType === 'accountCode') {
+        if (workforceCode.codeTypeId === 2) {
           entry.accountCode = workforceCode;
         } else {
           entry.workforceCode = workforceCode;
@@ -150,13 +151,13 @@ const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceC
             id: 'workCode',
             header: 'Work Code',
             size: 120,
-            accessorFn: (row) => row.workforceCode?.shortWorkforceCode ?? '',
+            accessorFn: (row) => row.workforceCode?.shortCodeValue ?? '',
             enableEditing: false,
             grow: false,
             Cell: ({ row }) => {
               const isCreating    = row.index < 0 || row.index >= data.length;
               const displayData   = isCreating && creatingRowData ? creatingRowData : row.original;
-              const displayValue  = displayData?.workforceCode?.shortWorkforceCode ?? '';
+              const displayValue  = displayData?.workforceCode?.shortCodeValue ?? '';
               const workforceCode = displayData?.workforceCode;
 
               // Check if work code is inactive or will expire within 5 days
@@ -210,14 +211,14 @@ const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceC
             id: 'accountCode',
             header: 'Account Code',
             size: 130,
-            accessorFn: (row) => row.accountCode?.shortWorkforceCode ?? '',
+            accessorFn: (row) => row.accountCode?.shortCodeValue ?? '',
             enableEditing: false,
             grow: false,
             Cell: ({ row }) => {
               const isCreating = row.index < 0 || row.index >= data.length;
               // Use creatingRowData if available for display, otherwise use row.original
               const displayData = isCreating && creatingRowData ? creatingRowData : row.original;
-              const displayValue = displayData?.accountCode?.shortWorkforceCode ?? '';
+              const displayValue = displayData?.accountCode?.shortCodeValue ?? '';
               const accountCode = displayData?.accountCode;
 
               // Check if account code is inactive or will expire within 5 days
@@ -421,7 +422,7 @@ const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceC
     mantineTableBodyCellProps: ({ cell, column, row }) => {
       const columnId = column.id;
       const value = cell.getValue();
-      const workCode = row.original?.workforceCode?.shortWorkforceCode || '';
+      const workCode = row.original?.workforceCode?.shortCodeValue || '';
 
       let ariaLabel = '';
 

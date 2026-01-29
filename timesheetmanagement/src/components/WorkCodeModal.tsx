@@ -42,11 +42,11 @@ function WorkforceCodeModal({
     (workforceCode) => {
       const search = searchTerm.toLowerCase();
       return (
-        workforceCode.shortWorkforceCode.toLowerCase().includes(search) ||
-        workforceCode.longWorkforceCode.toLowerCase().includes(search) ||
-        workforceCode.description.toLowerCase().includes(search) ||
-        workforceCode.prefix.toLowerCase().includes(search) ||
-        workforceCode.suffix.toLowerCase().includes(search) ||
+        (workforceCode.shortCodeValue?.toLowerCase() || '').includes(search) ||
+        (workforceCode.longCodeValue?.toLowerCase() || '').includes(search) ||
+        (workforceCode.description?.toLowerCase() || '').includes(search) ||
+        (workforceCode.prefix?.toLowerCase() || '').includes(search) ||
+        (workforceCode.suffix?.toLowerCase() || '').includes(search) ||
         getStatusLabelForFilter(workforceCode.status).includes(search) ||
         formatDateForFilter(workforceCode.effectiveDate).includes(search) ||
         formatDateForFilter(workforceCode.expirationDate).includes(search)
@@ -97,11 +97,11 @@ function WorkforceCodeModal({
     const shouldBlink = shouldBlinkRow(workforceCode);
     return (
       <Table.Tr
-        key={workforceCode.work_code_id}
+        key={workforceCode.id}
         className={shouldBlink ? 'work-code-warning' : undefined}
       >
-        <Table.Td>{workforceCode.shortWorkforceCode}</Table.Td>
-        <Table.Td>{workforceCode.longWorkforceCode}</Table.Td>
+        <Table.Td>{workforceCode.shortCodeValue}</Table.Td>
+        <Table.Td>{workforceCode.longCodeValue}</Table.Td>
         <Table.Td>{workforceCode.description}</Table.Td>
         <Table.Td>{getStatusLabel(workforceCode.status)}</Table.Td>
         <Table.Td>{formatDate(workforceCode.effectiveDate)}</Table.Td>

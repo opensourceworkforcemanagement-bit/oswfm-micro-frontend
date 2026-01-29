@@ -44,10 +44,10 @@ const timesheetService = new TimesheetService(httpClient);
 
 // Sample Pay Periods
 const samplePayPeriods: PayPeriod[] = [
-  { payPeriodId: 1, payPeriodTypeId: 1, startDate: new Date('2026-01-05'), endDate: new Date('2026-01-18') },
-  { payPeriodId: 2, payPeriodTypeId: 1, startDate: new Date('2026-01-19'), endDate: new Date('2026-02-01') },
-  { payPeriodId: 3, payPeriodTypeId: 1, startDate: new Date('2026-02-02'), endDate: new Date('2026-02-15') },
-  { payPeriodId: 4, payPeriodTypeId: 1, startDate: new Date('2026-02-16'), endDate: new Date('2026-03-01') },
+  { payPeriodId: 1, payPeriodTypeId: 1, startDate: new Date('2026-01-05'), endDate: new Date('2026-01-18'), year: 2026, periodNumber: 1 },
+  { payPeriodId: 2, payPeriodTypeId: 1, startDate: new Date('2026-01-19'), endDate: new Date('2026-02-01'), year: 2026, periodNumber: 2 },
+  { payPeriodId: 3, payPeriodTypeId: 1, startDate: new Date('2026-02-02'), endDate: new Date('2026-02-15'), year: 2026, periodNumber: 3 },
+  { payPeriodId: 4, payPeriodTypeId: 1, startDate: new Date('2026-02-16'), endDate: new Date('2026-03-01'), year: 2026, periodNumber: 4 },
 ];
 
 // Sample Employees
@@ -61,20 +61,20 @@ const sampleEmployees: Employee[] = [
 
 // Sample Workforce Codes
 const sampleWorkforceCodes: WorkforceCode[] = [
-  { work_code_id: 101, prefix: 'GEN', suffix: '001', shortWorkforceCode: 'GEN001', longWorkforceCode: 'General Operations', description: 'General Operations Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'workCode' },
-  { work_code_id: 102, prefix: 'RND', suffix: '001', shortWorkforceCode: 'RND001', longWorkforceCode: 'Research & Development', description: 'R&D Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'workCode' },
-  { work_code_id: 103, prefix: 'MKT', suffix: '001', shortWorkforceCode: 'MKT001', longWorkforceCode: 'Marketing', description: 'Marketing Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'workCode' },
-  { work_code_id: 104, prefix: 'LV', suffix: '001', shortWorkforceCode: 'LV001', longWorkforceCode: 'Paid Time Off', description: 'PTO Leave', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'workCode' },
-  { work_code_id: 105, prefix: 'TRN', suffix: '001', shortWorkforceCode: 'TRN001', longWorkforceCode: 'Training & Development', description: 'Training Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'workCode' },
+  { id: 101, codeId: 1, codeTypeId: 1, prefix: 'GEN', suffix: '001', shortCodeValue: 'GEN001', longCodeValue: 'General Operations', description: 'General Operations Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
+  { id: 102, codeId: 2, codeTypeId: 1, prefix: 'RND', suffix: '001', shortCodeValue: 'RND001', longCodeValue: 'Research & Development', description: 'R&D Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
+  { id: 103, codeId: 3, codeTypeId: 1, prefix: 'MKT', suffix: '001', shortCodeValue: 'MKT001', longCodeValue: 'Marketing', description: 'Marketing Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
+  { id: 104, codeId: 4, codeTypeId: 1, prefix: 'LV', suffix: '001', shortCodeValue: 'LV001', longCodeValue: 'Paid Time Off', description: 'PTO Leave', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
+  { id: 105, codeId: 5, codeTypeId: 1, prefix: 'TRN', suffix: '001', shortCodeValue: 'TRN001', longCodeValue: 'Training & Development', description: 'Training Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
 ];
 
 // Sample Account Codes
 const sampleAccountCodes: WorkforceCode[] = [
-  { work_code_id: 201, prefix: 'ADM', suffix: '001', shortWorkforceCode: 'ADM001', longWorkforceCode: 'Administrative', description: 'Admin Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'accountCode' },
-  { work_code_id: 202, prefix: 'PRJ', suffix: '001', shortWorkforceCode: 'PRJ001', longWorkforceCode: 'Project Alpha', description: 'Project Alpha Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'accountCode' },
-  { work_code_id: 203, prefix: 'PRJ', suffix: '002', shortWorkforceCode: 'PRJ002', longWorkforceCode: 'Project Beta', description: 'Project Beta Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'accountCode' },
-  { work_code_id: 204, prefix: 'MNT', suffix: '001', shortWorkforceCode: 'MNT001', longWorkforceCode: 'Maintenance', description: 'Maintenance Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'accountCode' },
-  { work_code_id: 205, prefix: 'SUP', suffix: '001', shortWorkforceCode: 'SUP001', longWorkforceCode: 'Customer Support', description: 'Support Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31'), codeType: 'accountCode' },
+  { id: 201, codeId: 1, codeTypeId: 2, prefix: 'ADM', suffix: '001', shortCodeValue: 'ADM001', longCodeValue: 'Administrative', description: 'Admin Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
+  { id: 202, codeId: 2, codeTypeId: 2, prefix: 'PRJ', suffix: '001', shortCodeValue: 'PRJ001', longCodeValue: 'Project Alpha', description: 'Project Alpha Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
+  { id: 203, codeId: 3, codeTypeId: 2, prefix: 'PRJ', suffix: '002', shortCodeValue: 'PRJ002', longCodeValue: 'Project Beta', description: 'Project Beta Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
+  { id: 204, codeId: 4, codeTypeId: 2, prefix: 'MNT', suffix: '001', shortCodeValue: 'MNT001', longCodeValue: 'Maintenance', description: 'Maintenance Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
+  { id: 205, codeId: 5, codeTypeId: 2, prefix: 'SUP', suffix: '001', shortCodeValue: 'SUP001', longCodeValue: 'Customer Support', description: 'Support Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
 ];
 
 // Sample Timesheets
@@ -218,10 +218,12 @@ interface TimesheetManagementProps {
 const TimesheetList: React.FC<{
   timesheets: Timesheet[];
   isLoading: boolean;
+  error: string | null;
   onSelectTimesheet: (timesheet: Timesheet) => void;
   onAddNew: () => void;
+  onDelete: (id: number) => void;
   theme?: string;
-}> = ({ timesheets, isLoading, onSelectTimesheet, onAddNew, theme }) => {
+}> = ({ timesheets, isLoading, error, onSelectTimesheet, onAddNew, onDelete, theme }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -364,6 +366,13 @@ const TimesheetList: React.FC<{
           </div>
         </div>
 
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800">
+            {error}
+          </div>
+        )}
+
         {/* Results count */}
         <div className={combineClasses('text-sm mb-2', themeClasses.textMuted)}>
           Showing {filteredTimesheets.length} of {timesheets.length} timesheets
@@ -423,9 +432,15 @@ const TimesheetList: React.FC<{
                   field: 'actions',
                   hozAlign: 'center',
                   headerSort: false,
-                  width: 120,
-                  formatter: () => {
-                    return `<button class="edit-btn px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">Edit</button>`;
+                  width: 180,
+                  formatter: (cell: any) => {
+                    const data = cell.getRow().getData();
+                    return `
+                      <div style="display: flex; gap: 8px; justify-content: center;">
+                        <button class="edit-btn px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600" data-id="${data.timesheetId}">Edit</button>
+                        <button class="delete-btn px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600" data-id="${data.timesheetId}">Delete</button>
+                      </div>
+                    `;
                   },
                 },
               ]}
@@ -438,9 +453,17 @@ const TimesheetList: React.FC<{
               events={{
                 cellClick: (e: any, cell: any) => {
                   const target = e.target as HTMLElement;
-                  if (target.closest('.edit-btn')) {
+                  const editBtn = target.closest('.edit-btn');
+                  const deleteBtn = target.closest('.delete-btn');
+
+                  if (editBtn) {
                     const rowData = cell.getRow().getData();
                     onSelectTimesheet(rowData._original);
+                  } else if (deleteBtn) {
+                    const id = deleteBtn.getAttribute('data-id');
+                    if (id && confirm('Are you sure you want to delete this timesheet?')) {
+                      onDelete(parseInt(id));
+                    }
                   }
                 },
               }}
@@ -762,12 +785,51 @@ const TimesheetEdit: React.FC<{
 const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
   theme = 'brand-a'
 }) => {
-  const [timesheets, setTimesheets] = useState<Timesheet[]>(sampleTimesheets);
-  const [payPeriods] = useState<PayPeriod[]>(samplePayPeriods);
+  const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
+  const [payPeriods, setPayPeriods] = useState<PayPeriod[]>(samplePayPeriods);
   const [employees] = useState<Employee[]>(sampleEmployees);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<'list' | 'edit'>('list');
   const [selectedTimesheet, setSelectedTimesheet] = useState<Timesheet | null>(null);
+
+  // Fetch timesheets on mount
+  useEffect(() => {
+    fetchTimesheets();
+    fetchPayPeriods();
+  }, []);
+
+  const fetchTimesheets = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await timesheetService.getAllTimesheets();
+      if (response.success && response.data) {
+        setTimesheets(response.data);
+      } else {
+        // Fallback to sample data if API fails
+        setTimesheets(sampleTimesheets);
+        console.warn('Using sample data:', response.message);
+      }
+    } catch (err) {
+      // Fallback to sample data on error
+      setTimesheets(sampleTimesheets);
+      console.error('Error fetching timesheets, using sample data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchPayPeriods = async () => {
+    try {
+      const response = await timesheetService.getPayPeriods();
+      if (response.success && response.data) {
+        setPayPeriods(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching pay periods, using sample data:', err);
+    }
+  };
 
   const handleSelectTimesheet = (timesheet: Timesheet) => {
     setSelectedTimesheet(timesheet);
@@ -780,23 +842,58 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
   };
 
   const handleSave = async (timesheet: Timesheet) => {
-    if (selectedTimesheet) {
-      // Update existing
-      setTimesheets(prev => prev.map(ts =>
-        ts.timesheetId === selectedTimesheet.timesheetId ? timesheet : ts
-      ));
-    } else {
-      // Create new
-      const newTimesheet = {
-        ...timesheet,
-        timesheetId: Date.now(),
-        createdAt: new Date(),
-      };
-      setTimesheets(prev => [...prev, newTimesheet]);
-    }
+    try {
+      if (selectedTimesheet) {
+        // Update existing timesheet
+        const response = await timesheetService.updateTimesheet(selectedTimesheet.timesheetId, {
+          timesheetEntries: timesheet.timesheetEntries,
+          status: timesheet.status,
+          comments: timesheet.comments,
+        });
 
-    setCurrentPage('list');
-    setSelectedTimesheet(null);
+        if (response.success && response.data) {
+          setTimesheets(prev => prev.map(ts =>
+            ts.timesheetId === selectedTimesheet.timesheetId ? response.data! : ts
+          ));
+        } else {
+          throw new Error(response.message || 'Update failed');
+        }
+      } else {
+        // Create new timesheet
+        const response = await timesheetService.createTimesheet({
+          employeeId: timesheet.employeeId,
+          payPeriodId: timesheet.payPeriodId,
+          timesheetEntries: timesheet.timesheetEntries,
+          comments: timesheet.comments,
+        });
+
+        if (response.success && response.data) {
+          setTimesheets(prev => [...prev, response.data!]);
+        } else {
+          throw new Error(response.message || 'Create failed');
+        }
+      }
+
+      setCurrentPage('list');
+      setSelectedTimesheet(null);
+    } catch (err) {
+      throw err; // Let the form handle the error display
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await timesheetService.deleteTimesheet(id);
+      if (response.success) {
+        setTimesheets(prev => prev.filter(ts => ts.timesheetId !== id));
+      } else {
+        throw new Error(response.message || 'Delete failed');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An error occurred';
+      setError(message);
+      console.error('Error deleting timesheet:', err);
+    }
   };
 
   const handleCancel = () => {
@@ -808,8 +905,10 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
     <TimesheetList
       timesheets={timesheets}
       isLoading={isLoading}
+      error={error}
       onSelectTimesheet={handleSelectTimesheet}
       onAddNew={handleAddNew}
+      onDelete={handleDelete}
       theme={theme}
     />
   ) : (

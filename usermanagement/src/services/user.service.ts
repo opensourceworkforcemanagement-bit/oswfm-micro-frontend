@@ -9,7 +9,7 @@ import {
   CommonService,
   ApiResponse,
   SearchParams,
-} from './commonServices';
+} from './common.services.ts';
 
 // ============================================================================
 // User Types

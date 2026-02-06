@@ -12,11 +12,15 @@ export interface FieldConfig {
   label: string;
   hint: string;
   required: boolean;
-  type?: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'email' | 'password' | 'boolean' | 'file' | 'image' | 'url' | 'tel' | 'color' | 'time' | 'datetime-local' | 'month';
+  type?: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'email' | 'password' | 'boolean' | 'file' | 'image' | 'url' | 'tel' | 'color' | 'time' | 'datetime-local' | 'month' | 'checkbox' | 'radio';
   options?: Array<{ value: string | number ; label: string }>;
   maxLength?: number;
   min?: number;
   max?: number;
+  defaultValue?: string;
+  validationRegex?: string;
+  validationMessage?: string;
+  displayOrder?: number;
 }
 
 export interface ColumnConfig {
@@ -24,11 +28,19 @@ export interface ColumnConfig {
   label: string;
   width?: number;
   formatter?: (value: any) => string;
+  sortable?: boolean;
+  filterable?: boolean;
+  displayOrder?: number;
 }
 
 export interface ActionConfig {
   enabled: boolean;
   visible: boolean;
+  label?: string;
+  actionType?: string;
+  icon?: string;
+  confirmationMessage?: string;
+  displayOrder?: number;
 }
 
 export interface PaginationConfig {

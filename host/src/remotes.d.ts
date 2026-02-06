@@ -21,3 +21,13 @@ declare module 'timesheetmanagement/TimesheetManagement' {
  const TimesheetManagement: React.ComponentType<any>;
   export default TimesheetManagement;
 }
+
+declare module 'usermanagement/EmployeeManagement' {
+  const EmployeeManagement: React.ComponentType<any>;
+    export default EmployeeManagement;
+}
+
+declare module 'administrationmanagement/administrationmanagement' {
+  const AbacPermissionManagement: React.ComponentType<any>;
+    export default AbacPermissionManagement;
+}

@@ -1,0 +1,17 @@
+{
+  "name": "oswfm-microfrontend",
+  "private": true,
+  "workspaces": [
+    "host",
+    "usermanagement",
+    "timesheetmanagement",
+    "SharedLibrary",
+    "administrationmanagement"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "build": "npm run build --workspaces",
+    "rebuild": "npm run rebuild --workspaces",
+    "reinstall": "rimraf node_modules package-lock.json administrationmanagement/node_modules host/node_modules usermanagement/node_modules timesheetmanagement/node_modules SharedLibrary/node_modules && npm install"
+  }
+}

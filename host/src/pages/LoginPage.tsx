@@ -4,8 +4,9 @@ import "../index.css";
 import { useNavigate } from 'react-router-dom';
 // 1. Authentication with proper typing
 import apiService, { LoginCredentials } from '../services/commonServices';
-import  ErrorDialog from '../../../SharedLibrary/src/components/ErrorDialog';
-
+import { MantineProvider, Modal } from '@mantine/core';
+import '@mantine/core/styles.css';
+import { useDisclosure } from '@mantine/hooks';
 
 export default function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -14,7 +15,9 @@ export default function LoginPage({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   
-      const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
+
 
   const handleSubmit = async () => {
     if (!userName || !password) {
@@ -33,13 +36,11 @@ export default function LoginPage({ onLogin }) {
     console.log('Login response:', response);
 
     if (response.success) {
-      apiService.setAuthToken(response.data.response.accessToken || '');
-      onLogin();
-      
+      await apiService.setAuthToken(response.data.response.accessToken || '');
+      onLogin();      
     } else {
-      setOpen(true);
+      openModal();
       console.error('Login failed:', response.message);
-
     }
     
   };
@@ -53,14 +54,14 @@ export default function LoginPage({ onLogin }) {
 
   return (
 
-
+    <MantineProvider>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <ErrorDialog title="Error" open={open} onOpenChange={setOpen} >
+            <Modal opened={modalOpened} onClose={closeModal} title="Error">
               <p>Something went wrong!</p>
-            </ErrorDialog>
+            </Modal>
             <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-full mb-4">
               <Lock className="w-8 h-8 text-white" />
             </div>
@@ -152,5 +153,6 @@ export default function LoginPage({ onLogin }) {
       </div>
 
     </div>
+    </MantineProvider>
   );
 }

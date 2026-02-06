@@ -17,6 +17,8 @@ import { commonClasses, themeClasses, combineClasses } from '../styles/styles.cl
 
 // Import services
 import { TimesheetService } from '../services/timesheet.service.ts';
+import { EmployeeService } from '../services/employee.service.ts';
+import { WorkCodeService } from '../services/work-codes.service.ts';
 import { HttpClient } from '../services/common.services.ts';
 
 // Import types
@@ -25,183 +27,23 @@ import {
   TimesheetEntry,
   TimesheetSummary,
   TimesheetStatus,
-  PayPeriod,
-  Employee,
+  PayPeriod,  
   Weeks,
 } from '../types/timesheet.types.ts';
 import { WorkforceCode } from '../types/workcode.types.ts';
+import { Employee } from '../types/employee.types.ts'
 
 // Import MantineReactTimeSheetTable
 import MantineReactTimeSheetTable from '../components/MantineReactTimeSheetTable';
 
-// Initialize service
+// Initialize services
 const httpClient = new HttpClient({ baseURL: 'http://localhost:1110/api/v1' });
 const timesheetService = new TimesheetService(httpClient);
+const workCodeService = new WorkCodeService(httpClient);
 
-// ============================================================================
-// Sample Data
-// ============================================================================
+const employeeHttpClient = new HttpClient({ baseURL: 'http://localhost:1110/api/v1' });
+const employeeService = new EmployeeService(employeeHttpClient);
 
-// Sample Pay Periods
-const samplePayPeriods: PayPeriod[] = [
-  { payPeriodId: 1, payPeriodTypeId: 1, startDate: new Date('2026-01-05'), endDate: new Date('2026-01-18'), year: 2026, periodNumber: 1 },
-  { payPeriodId: 2, payPeriodTypeId: 1, startDate: new Date('2026-01-19'), endDate: new Date('2026-02-01'), year: 2026, periodNumber: 2 },
-  { payPeriodId: 3, payPeriodTypeId: 1, startDate: new Date('2026-02-02'), endDate: new Date('2026-02-15'), year: 2026, periodNumber: 3 },
-  { payPeriodId: 4, payPeriodTypeId: 1, startDate: new Date('2026-02-16'), endDate: new Date('2026-03-01'), year: 2026, periodNumber: 4 },
-];
-
-// Sample Employees
-const sampleEmployees: Employee[] = [
-  { employeeId: 1, firstName: 'John', lastName: 'Doe', email: 'john.doe@company.com', department: 'Engineering', employeeNumber: 'EMP001' },
-  { employeeId: 2, firstName: 'Jane', lastName: 'Smith', email: 'jane.smith@company.com', department: 'Marketing', employeeNumber: 'EMP002' },
-  { employeeId: 3, firstName: 'Bob', lastName: 'Johnson', email: 'bob.johnson@company.com', department: 'Finance', employeeNumber: 'EMP003' },
-  { employeeId: 4, firstName: 'Alice', lastName: 'Williams', email: 'alice.williams@company.com', department: 'HR', employeeNumber: 'EMP004' },
-  { employeeId: 5, firstName: 'Charlie', lastName: 'Brown', email: 'charlie.brown@company.com', department: 'Engineering', employeeNumber: 'EMP005' },
-];
-
-// Sample Workforce Codes
-const sampleWorkforceCodes: WorkforceCode[] = [
-  { id: 101, codeId: 1, codeTypeId: 1, prefix: 'GEN', suffix: '001', shortCodeValue: 'GEN001', longCodeValue: 'General Operations', description: 'General Operations Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
-  { id: 102, codeId: 2, codeTypeId: 1, prefix: 'RND', suffix: '001', shortCodeValue: 'RND001', longCodeValue: 'Research & Development', description: 'R&D Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
-  { id: 103, codeId: 3, codeTypeId: 1, prefix: 'MKT', suffix: '001', shortCodeValue: 'MKT001', longCodeValue: 'Marketing', description: 'Marketing Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
-  { id: 104, codeId: 4, codeTypeId: 1, prefix: 'LV', suffix: '001', shortCodeValue: 'LV001', longCodeValue: 'Paid Time Off', description: 'PTO Leave', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
-  { id: 105, codeId: 5, codeTypeId: 1, prefix: 'TRN', suffix: '001', shortCodeValue: 'TRN001', longCodeValue: 'Training & Development', description: 'Training Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
-];
-
-// Sample Account Codes
-const sampleAccountCodes: WorkforceCode[] = [
-  { id: 201, codeId: 1, codeTypeId: 2, prefix: 'ADM', suffix: '001', shortCodeValue: 'ADM001', longCodeValue: 'Administrative', description: 'Admin Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
-  { id: 202, codeId: 2, codeTypeId: 2, prefix: 'PRJ', suffix: '001', shortCodeValue: 'PRJ001', longCodeValue: 'Project Alpha', description: 'Project Alpha Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
-  { id: 203, codeId: 3, codeTypeId: 2, prefix: 'PRJ', suffix: '002', shortCodeValue: 'PRJ002', longCodeValue: 'Project Beta', description: 'Project Beta Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
-  { id: 204, codeId: 4, codeTypeId: 2, prefix: 'MNT', suffix: '001', shortCodeValue: 'MNT001', longCodeValue: 'Maintenance', description: 'Maintenance Work', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
-  { id: 205, codeId: 5, codeTypeId: 2, prefix: 'SUP', suffix: '001', shortCodeValue: 'SUP001', longCodeValue: 'Customer Support', description: 'Support Activities', status: 1, effectiveDate: new Date('2024-01-01'), expirationDate: new Date('2026-12-31') },
-];
-
-// Sample Timesheets
-const sampleTimesheets: Timesheet[] = [
-  {
-    timesheetId: 1,
-    employeeId: 1,
-    employee: sampleEmployees[0],
-    payPeriodId: 2,
-    payPeriod: samplePayPeriods[1],
-    status: 'draft',
-    timesheetEntries: [
-      {
-        timesheetEntryId: 1,
-        timesheetId: 1,
-        workforceCode: sampleWorkforceCodes[0],
-        accountCode: sampleAccountCodes[1],
-        weeks: [
-          { week: 1, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 8, satHours: 0 },
-          { week: 2, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 8, satHours: 0 },
-        ],
-      },
-      {
-        timesheetEntryId: 2,
-        timesheetId: 1,
-        workforceCode: sampleWorkforceCodes[1],
-        accountCode: sampleAccountCodes[2],
-        weeks: [
-          { week: 1, sunHours: 0, monHours: 0, tueHours: 0, wedHours: 0, thuHours: 0, friHours: 0, satHours: 0 },
-          { week: 2, sunHours: 0, monHours: 0, tueHours: 0, wedHours: 4, thuHours: 4, friHours: 0, satHours: 0 },
-        ],
-      },
-    ],
-    createdAt: new Date('2026-01-19'),
-  },
-  {
-    timesheetId: 2,
-    employeeId: 2,
-    employee: sampleEmployees[1],
-    payPeriodId: 2,
-    payPeriod: samplePayPeriods[1],
-    status: 'submitted',
-    timesheetEntries: [
-      {
-        timesheetEntryId: 3,
-        timesheetId: 2,
-        workforceCode: sampleWorkforceCodes[2],
-        accountCode: sampleAccountCodes[0],
-        weeks: [
-          { week: 1, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 8, satHours: 0 },
-          { week: 2, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 8, satHours: 0 },
-        ],
-      },
-    ],
-    submittedAt: new Date('2026-01-25'),
-    createdAt: new Date('2026-01-19'),
-  },
-  {
-    timesheetId: 3,
-    employeeId: 3,
-    employee: sampleEmployees[2],
-    payPeriodId: 2,
-    payPeriod: samplePayPeriods[1],
-    status: 'approved',
-    timesheetEntries: [
-      {
-        timesheetEntryId: 4,
-        timesheetId: 3,
-        workforceCode: sampleWorkforceCodes[0],
-        accountCode: sampleAccountCodes[3],
-        weeks: [
-          { week: 1, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 8, satHours: 0 },
-          { week: 2, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 8, satHours: 0 },
-        ],
-      },
-    ],
-    submittedAt: new Date('2026-01-24'),
-    approvedAt: new Date('2026-01-26'),
-    createdAt: new Date('2026-01-19'),
-  },
-  {
-    timesheetId: 4,
-    employeeId: 4,
-    employee: sampleEmployees[3],
-    payPeriodId: 1,
-    payPeriod: samplePayPeriods[0],
-    status: 'approved',
-    timesheetEntries: [
-      {
-        timesheetEntryId: 5,
-        timesheetId: 4,
-        workforceCode: sampleWorkforceCodes[3],
-        accountCode: sampleAccountCodes[4],
-        weeks: [
-          { week: 1, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 0, satHours: 0 },
-          { week: 2, sunHours: 0, monHours: 8, tueHours: 8, wedHours: 8, thuHours: 8, friHours: 8, satHours: 0 },
-        ],
-      },
-    ],
-    submittedAt: new Date('2026-01-10'),
-    approvedAt: new Date('2026-01-12'),
-    createdAt: new Date('2026-01-05'),
-  },
-  {
-    timesheetId: 5,
-    employeeId: 5,
-    employee: sampleEmployees[4],
-    payPeriodId: 2,
-    payPeriod: samplePayPeriods[1],
-    status: 'rejected',
-    timesheetEntries: [
-      {
-        timesheetEntryId: 6,
-        timesheetId: 5,
-        workforceCode: sampleWorkforceCodes[4],
-        accountCode: sampleAccountCodes[0],
-        weeks: [
-          { week: 1, sunHours: 0, monHours: 4, tueHours: 4, wedHours: 4, thuHours: 4, friHours: 4, satHours: 0 },
-          { week: 2, sunHours: 0, monHours: 4, tueHours: 4, wedHours: 4, thuHours: 4, friHours: 4, satHours: 0 },
-        ],
-      },
-    ],
-    submittedAt: new Date('2026-01-24'),
-    comments: 'Missing project code for training hours',
-    createdAt: new Date('2026-01-19'),
-  },
-];
 
 // ============================================================================
 // Props Interfaces
@@ -719,6 +561,7 @@ const TimesheetEdit: React.FC<{
               availableAccountCodes={accountCodes}
               availableWorkforceCodes={workforceCodes}
               initialData={formData.timesheetEntries}
+              onChange={(entries) => setFormData(prev => ({ ...prev, timesheetEntries: entries }))}
             />
             </MantineProvider>
           </div>
@@ -786,17 +629,22 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
   theme = 'brand-a'
 }) => {
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
-  const [payPeriods, setPayPeriods] = useState<PayPeriod[]>(samplePayPeriods);
-  const [employees] = useState<Employee[]>(sampleEmployees);
+  const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [workforceCodes, setWorkforceCodes] = useState<WorkforceCode[]>([]);
+  const [accountCodes, setAccountCodes] = useState<WorkforceCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<'list' | 'edit'>('list');
   const [selectedTimesheet, setSelectedTimesheet] = useState<Timesheet | null>(null);
 
-  // Fetch timesheets on mount
+  // Fetch data on mount
   useEffect(() => {
     fetchTimesheets();
     fetchPayPeriods();
+    fetchEmployees();
+    fetchWorkforceCodes();
+    fetchAccountCodes();
   }, []);
 
   const fetchTimesheets = async () => {
@@ -807,14 +655,10 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
       if (response.success && response.data) {
         setTimesheets(response.data);
       } else {
-        // Fallback to sample data if API fails
-        setTimesheets(sampleTimesheets);
-        console.warn('Using sample data:', response.message);
+        console.warn('Failed to fetch timesheets:', response.message);
       }
     } catch (err) {
-      // Fallback to sample data on error
-      setTimesheets(sampleTimesheets);
-      console.error('Error fetching timesheets, using sample data:', err);
+      console.error('Error fetching timesheets:', err);
     } finally {
       setIsLoading(false);
     }
@@ -827,7 +671,40 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
         setPayPeriods(response.data);
       }
     } catch (err) {
-      console.error('Error fetching pay periods, using sample data:', err);
+      console.error('Error fetching pay periods:', err);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await employeeService.getAllEmployees();
+      if (response.success && response.data) {
+        setEmployees(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching employees:', err);
+    }
+  };
+
+  const fetchWorkforceCodes = async () => {
+    try {
+      const response = await workCodeService.getWorkCodesByTypeName('WORK_CODE');
+      if (response.success && response.data) {
+        setWorkforceCodes(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching workforce codes:', err);
+    }
+  };
+
+  const fetchAccountCodes = async () => {
+    try {
+      const response = await workCodeService.getWorkCodesByTypeName('ACCOUNT_CODE');
+      if (response.success && response.data) {
+        setAccountCodes(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching account codes:', err);
     }
   };
 
@@ -916,8 +793,8 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
       timesheet={selectedTimesheet}
       payPeriods={payPeriods}
       employees={employees}
-      workforceCodes={sampleWorkforceCodes}
-      accountCodes={sampleAccountCodes}
+      workforceCodes={workforceCodes}
+      accountCodes={accountCodes}
       onSave={handleSave}
       onCancel={handleCancel}
       isNew={!selectedTimesheet}

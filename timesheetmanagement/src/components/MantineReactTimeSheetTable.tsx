@@ -46,11 +46,21 @@ function calculateRowTotal(entry: TimesheetEntry): number {
 interface MantineReactTimeSheetTableProps {
   availableAccountCodes: WorkforceCode[];
   availableWorkforceCodes: WorkforceCode[];
-  initialData: TimesheetEntry[];  
+  initialData: TimesheetEntry[];
+  onChange?: (entries: TimesheetEntry[]) => void;
 }
 
-const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceCodes, initialData }: MantineReactTimeSheetTableProps) => {
-  const [data, setData] = useState<TimesheetEntry[]>(initialData);
+const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceCodes, initialData, onChange }: MantineReactTimeSheetTableProps) => {
+  const [data, setDataInternal] = useState<TimesheetEntry[]>(initialData);
+
+  // Wrapper around setData that also notifies the parent
+  const setData = (updater: TimesheetEntry[] | ((prev: TimesheetEntry[]) => TimesheetEntry[])) => {
+    setDataInternal((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      onChange?.(next);
+      return next;
+    });
+  };
   const [workforceCodeModalOpened, { open: openWorkforceCodeModal, close: closeWorkforceCodeModal }] = useDisclosure(false);
   const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
   const [creatingRowData, setCreatingRowData] = useState<TimesheetEntry | null>(null);
@@ -185,6 +195,7 @@ const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceC
                   setSelectedRowIndex(row.index);
                 }
                 setModalTitle('Select Work Code');
+                //TODO retrieve the list of work codes from the backend
                 setAvailableWorkforceCode(availableWorkforceCodes);
                 openWorkforceCodeModal();
               };
@@ -246,6 +257,7 @@ const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceC
                   setSelectedRowIndex(row.index);
                 }
                 setModalTitle('Select Account Code');
+                //TODO retrieve the list of accounts codes from the backend
                 setAvailableWorkforceCode(availableAccountCodes);
                 openWorkforceCodeModal();
               };
@@ -490,7 +502,6 @@ const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceC
       const defaultNewEntry: TimesheetEntry = {
         timesheetEntryId: undefined,
         timesheetId: 100,
-        payperiodId: 1,
         workforceCode: undefined,
         accountCode: undefined,
         weeks: [

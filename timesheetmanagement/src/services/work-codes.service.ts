@@ -139,10 +139,17 @@ export class WorkCodeService extends CommonService<WorkforceCode> {
   }
 
   /**
-   * Get work codes by code type
+   * Get work codes by code type ID
    */
   async getWorkCodesByType(codeTypeId: number): Promise<ApiResponse<WorkforceCode[]>> {
     return this.getAll({ codeTypeId });
+  }
+
+  /**
+   * Get work codes by code type name (e.g. 'WORK_CODE', 'ACCOUNT_CODE')
+   */
+  async getWorkCodesByTypeName(codeTypeName: string): Promise<ApiResponse<WorkforceCode[]>> {
+    return this.client.get<WorkforceCode[]>(`/${this.resourcePath}/by-type-name/${encodeURIComponent(codeTypeName)}`);
   }
 
   /**

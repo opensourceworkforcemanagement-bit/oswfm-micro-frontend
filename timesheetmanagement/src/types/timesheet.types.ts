@@ -1,16 +1,8 @@
+import { Employee } from './employee.types';
 import { WorkforceCode } from './workcode.types';
 
 // Timesheet Status Types
 export type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | 'recalled';
-
-export interface Employee {
-  employeeId: number;
-  firstName: string;
-  lastName: string;
-  email?: string;
-  department?: string;
-  employeeNumber?: string;
-}
 
 export interface PayPeriodType {
   payPeriodTypeId: number;

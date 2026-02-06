@@ -6,7 +6,8 @@
     "build:dev": "cross-env NODE_ENV=development rspack build",
     "build:start": "cd dist && rspack serve",
     "start": "cross-env NODE_ENV=development rspack serve",
-    "start:standalone": "cross-env NODE_ENV=development STANDALONE=true rspack serve"
+    "start:standalone": "cross-env NODE_ENV=development STANDALONE=true rspack serve",
+    "rebuild": "rimraf dist && cross-env NODE_ENV=production rspack build"
   },
   "devDependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

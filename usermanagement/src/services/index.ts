@@ -52,6 +52,56 @@ export {
 } from './user.service';
 
 // ============================================================================
+// Employee Services
+// ============================================================================
+
+export {
+  EmployeeService, createEmployeeService,
+  AddressesService, createAddressesService,
+  DepartmentsService, createDepartmentsService,
+  EmailAddressesService, createEmailAddressesService,
+  EmployeeAddressService, createEmployeeAddressService,
+  EmployeesAuditLogService, createEmployeesAuditLogService,
+  EmployeesEmergencyContactsService, createEmployeesEmergencyContactsService,
+  EmployeesEmergencyContactEmailsService, createEmployeesEmergencyContactEmailsService,
+  EmployeesEmergencyContactPhoneNumbersService, createEmployeesEmergencyContactPhoneNumbersService,
+  EmployeesPreferencesService, createEmployeesPreferencesService,
+  EmployeesRolesService, createEmployeesRolesService,
+  EmployeesSettingsService, createEmployeesSettingsService,
+  EmployeesSsnService, createEmployeesSsnService,
+  EmployeesStatusHistoryService, createEmployeesStatusHistoryService,
+  OrganizationService, createOrganizationService,
+  PermissionsService, createPermissionsService,
+  PhoneNumbersService, createPhoneNumbersService,
+  ProjectsService, createProjectsService,
+  RolePermissionsService, createRolePermissionsService,
+  EmployeeUserService, createEmployeeUserService,
+} from './employee.service';
+
+export type {
+  Employee, EmployeesRequest,
+  Address, AddressesRequest,
+  Department, DepartmentsRequest,
+  EmailAddress, EmailAddressesRequest,
+  EmployeeAddress, EmployeeAddressRequest,
+  EmployeesAuditLog, EmployeesAuditLogRequest,
+  EmployeesEmergencyContact, EmployeesEmergencyContactsRequest,
+  EmployeesEmergencyContactEmail, EmployeesEmergencyContactEmailsRequest,
+  EmployeesEmergencyContactPhoneNumber, EmployeesEmergencyContactPhoneNumbersRequest,
+  EmployeesPreference, EmployeesPreferencesRequest,
+  EmployeesRole, EmployeesRolesRequest,
+  EmployeesSetting, EmployeesSettingsRequest,
+  EmployeesSsn, EmployeesSsnRequest,
+  EmployeesStatusHistory, EmployeesStatusHistoryRequest,
+  Organization, OrganizationRequest,
+  Permission, PermissionsRequest,
+  PhoneNumber, PhoneNumbersRequest,
+  Project, ProjectsRequest,
+  RolePermission, RolePermissionsRequest,
+  EmployeeUser, EmployeeUserRequest,
+} from '../types/employee.types';
+
+// ============================================================================
 // ABAC API Service
 // ============================================================================
 
@@ -110,6 +160,7 @@ import { createHttpClient, HttpClient } from './commonServices';
 import { createUserService, UserService } from './user.service';
 import { createAbacApiService, AbacApiService } from './abac-api.service';
 import { createClientPolicyEvaluator, ClientPolicyEvaluator } from './client-policy-evaluator.service';
+import { createEmployeeService, EmployeeService } from './employee.service';
 
 /**
  * Initialize all services with a common HTTP client
@@ -119,6 +170,7 @@ export interface ServiceContainer {
   userService: UserService;
   abacApiService: AbacApiService;
   policyEvaluator: ClientPolicyEvaluator;
+  employeeService: EmployeeService;
 }
 
 /**
@@ -138,11 +190,13 @@ export const createServiceContainer = (baseURL: string): ServiceContainer => {
     useCache: true,
     fallbackToServer: true,
   });
+  const employeeService = createEmployeeService(httpClient);
 
   return {
     httpClient,
     userService,
     abacApiService,
     policyEvaluator,
+    employeeService,
   };
 };

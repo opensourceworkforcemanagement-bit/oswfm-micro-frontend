@@ -6,6 +6,7 @@ export const mfConfig = {
   remotes: {
         usermanagement: 'usermanagement@http://localhost:3001/remoteEntry.js', // URL to your remote app
         timesheetmanagement: 'timesheetmanagement@http://localhost:3004/remoteEntry.js', // URL to your remote app
+        administrationmanagement: 'administrationmanagement@http://localhost:3007/remoteEntry.js', // URL to your remote app
   },
   shared: {
     react: { singleton: true, requiredVersion: deps.react, eager: true },

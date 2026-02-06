@@ -1,3 +1,4 @@
+import localforage from 'localforage';
 /**
  * Common Services - Core HTTP Client
  * Follows SOLID principles and OWASP security guidelines
@@ -122,14 +123,14 @@ export class TimeoutError extends Error {
 // ============================================================================
 
 class SecureTokenStorage implements TokenStorage {
-  private readonly TOKEN_KEY = 'auth_token';
+  private readonly TOKEN_KEY = 'authToken';
   private readonly TOKEN_PATTERN = /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$/;
 
   async getToken(): Promise<string | null> {
     try {
-      const token = localStorage.getItem(this.TOKEN_KEY);
-      if (token && this.validateToken(token)) {
-        return token;
+      const token = await localforage.getItem(this.TOKEN_KEY);
+      if (token && this.validateToken(token.toString())) {
+        return token.toString();
       }
       return null;
     } catch (error) {
@@ -143,7 +144,7 @@ class SecureTokenStorage implements TokenStorage {
       if (!this.validateToken(token)) {
         throw new Error('Invalid token format');
       }
-      localStorage.setItem(this.TOKEN_KEY, token);
+      await localforage.setItem(this.TOKEN_KEY, token);
     } catch (error) {
       console.error('Error storing token:', error);
       throw error;
@@ -152,7 +153,7 @@ class SecureTokenStorage implements TokenStorage {
 
   async removeToken(): Promise<void> {
     try {
-      localStorage.removeItem(this.TOKEN_KEY);
+      await localforage.removeItem(this.TOKEN_KEY);
     } catch (error) {
       console.error('Error removing token:', error);
     }

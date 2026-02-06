@@ -1,16 +1,19 @@
 import ReactDOM from "react-dom/client";
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { Menu, Home, Users, Settings, X, Bell, Share2, ChevronDown, Check, Activity, PersonStandingIcon  } from 'lucide-react';
+import { Menu, Home, Users, Settings, X, Bell, Share2, ChevronDown, ChevronRight, Check, Activity, PersonStandingIcon, Shield  } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
 import * as Switch from '@radix-ui/react-switch';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import './index.css'
 import LoginPage from "./pages/LoginPage";
+import { MantineProvider } from '@mantine/core';
 const UserManagementComp = React.lazy(() => import('usermanagement/UserManagement'));
 const WorkCodeManagementComp = React.lazy(() => import('timesheetmanagement/WorkCodeManagement'));
 const TimesheetManagementComp = React.lazy(() => import('timesheetmanagement/TimesheetManagement'));
+const EmployeeManagementComp = React.lazy(() => import('usermanagement/EmployeeManagement'));
+const AccessControlComp = React.lazy(() => import('administrationmanagement/administrationmanagement'));
 
 // Shared State Context
 const SharedStateContext = createContext();
@@ -393,8 +396,17 @@ const microFrontends = {
   dashboard: { component: Dashboard, name: 'Dashboard', icon: Home, path: '/' },
   roles: { component: Roles, name: 'Roles', icon: PersonStandingIcon, path: '/roles' },
   users: { component: UserManagementComp, name: 'Users', icon: Users, path: '/users' },
+  emplopyees: { component: EmployeeManagementComp, name: 'Employees', icon: Users, path: '/employees' },
   workcodes: { component: WorkCodeManagementComp, name: 'Work Codes', icon: Activity, path: '/workcodes' },
   timesheet: { component: TimesheetManagementComp, name: 'Timesheet Management', icon: Check, path: '/timesheet' },
+  administrationmanagement: {
+    name: 'Administration Management',
+    icon: Shield,
+    path: '/administration',
+    children: {
+      accesscontrol: { component: AccessControlComp, name: 'Access Control', icon: Shield, path: '/administration/access-control' },
+    }
+  },
   settings: { component: SettingsModule, name: 'Settings', icon: Settings, path: '/settings' }
 };
 
@@ -402,6 +414,11 @@ const microFrontends = {
 function MobileMenu({ open, onOpenChange }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
+
+  const toggleSubmenu = (key: string) => {
+    setExpandedMenus(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const handleNavigation = (path) => {
     navigate(path);
@@ -419,10 +436,53 @@ function MobileMenu({ open, onOpenChange }) {
               <X size={20} />
             </Dialog.Close>
           </div>
-          
+
           <nav className="space-y-2">
             {Object.entries(microFrontends).map(([key, mfe]) => {
               const Icon = mfe.icon;
+              const hasChildren = 'children' in mfe && mfe.children;
+
+              if (hasChildren) {
+                const isExpanded = expandedMenus[key];
+                const isChildActive = Object.values(mfe.children).some(child => location.pathname.startsWith(child.path));
+                return (
+                  <div key={key}>
+                    <button
+                      onClick={() => toggleSubmenu(key)}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
+                        isChildActive ? 'bg-indigo-600' : 'hover:bg-gray-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon size={20} />
+                        <span>{mfe.name}</span>
+                      </div>
+                      <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isExpanded && (
+                      <div className="ml-4 mt-1 space-y-1">
+                        {Object.entries(mfe.children).map(([childKey, child]) => {
+                          const ChildIcon = child.icon;
+                          const isActive = location.pathname.startsWith(child.path);
+                          return (
+                            <button
+                              key={childKey}
+                              onClick={() => handleNavigation(child.path)}
+                              className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
+                                isActive ? 'bg-indigo-600' : 'hover:bg-gray-800'
+                              }`}
+                            >
+                              <ChildIcon size={16} />
+                              <span>{child.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               const isActive = location.pathname === mfe.path;
               return (
                 <button
@@ -448,13 +508,24 @@ function MobileMenu({ open, onOpenChange }) {
 function Layout({ children, onLogout }) {
   const { sharedState } = useSharedState();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
   const location = useLocation();
 
+  const toggleSubmenu = (key: string) => {
+    setExpandedMenus(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   // Get current module name based on route
   const getCurrentModuleName = () => {
-    const module = Object.values(microFrontends).find(mfe => mfe.path === location.pathname);
-    return module ? module.name : 'Dashboard';
+    for (const mfe of Object.values(microFrontends)) {
+      if (mfe.path === location.pathname) return mfe.name;
+      if ('children' in mfe && mfe.children) {
+        const child = Object.values(mfe.children).find(c => location.pathname.startsWith(c.path));
+        if (child) return child.name;
+      }
+    }
+    return 'Dashboard';
   };
 
   return (
@@ -464,10 +535,53 @@ function Layout({ children, onLogout }) {
         <div className="p-4 border-b border-gray-800">
           <h1 className="font-bold text-xl">OSWFM</h1>
         </div>
-        
+
         <nav className="flex-1 px-2 py-4">
           {Object.entries(microFrontends).map(([key, mfe]) => {
             const Icon = mfe.icon;
+            const hasChildren = 'children' in mfe && mfe.children;
+
+            if (hasChildren) {
+              const isExpanded = expandedMenus[key];
+              const isChildActive = Object.values(mfe.children).some(child => location.pathname.startsWith(child.path));
+              return (
+                <div key={key} className="mb-2">
+                  <button
+                    onClick={() => toggleSubmenu(key)}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
+                      isChildActive ? 'bg-indigo-600' : 'hover:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon size={20} />
+                      <span>{mfe.name}</span>
+                    </div>
+                    <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isExpanded && (
+                    <div className="ml-4 mt-1 space-y-1">
+                      {Object.entries(mfe.children).map(([childKey, child]) => {
+                        const ChildIcon = child.icon;
+                        const isActive = location.pathname.startsWith(child.path);
+                        return (
+                          <button
+                            key={childKey}
+                            onClick={() => navigate(child.path)}
+                            className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${
+                              isActive ? 'bg-indigo-600' : 'hover:bg-gray-800'
+                            }`}
+                          >
+                            <ChildIcon size={16} />
+                            <span>{child.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             const isActive = location.pathname === mfe.path;
             return (
               <button
@@ -576,9 +690,9 @@ export default function MicroFrontendHost() {
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // if (!isAuthenticated) {
-  //   return <LoginPage onLogin={() => setIsAuthenticated(true)} />;
-  // }
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     // <BrowserRouter>
@@ -595,7 +709,7 @@ export default function MicroFrontendHost() {
     //     </Layout>
     //   </SharedStateProvider>
     // </BrowserRouter>
-
+ <MantineProvider >
      <BrowserRouter>
       <Routes>
         {/* Login route - accessible when not authenticated */}
@@ -605,7 +719,9 @@ export default function MicroFrontendHost() {
             isAuthenticated ? (
               <Navigate to="/" replace />
             ) : (
-              <LoginPage onLogin={() => setIsAuthenticated(true)} />
+             
+                <LoginPage onLogin={() => setIsAuthenticated(true)} />
+              
             )
           } 
         />
@@ -627,6 +743,11 @@ export default function MicroFrontendHost() {
                         </React.Suspense>
                       } 
                     />
+                    <Route path="/employees/*" element={
+                      <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                        <EmployeeManagementComp />
+                      </React.Suspense>
+                    } />
                     <Route path="/roles" element={<Roles />} />
                     <Route 
                       path="/workcodes/*" 
@@ -641,6 +762,11 @@ export default function MicroFrontendHost() {
                         <TimesheetManagementComp />
                       </React.Suspense>
                     } />
+                    <Route path="/administration/access-control/*" element={
+                      <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                        <AccessControlComp />
+                      </React.Suspense>
+                    } />
                     <Route path="/settings" element={<SettingsModule />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
@@ -651,6 +777,7 @@ export default function MicroFrontendHost() {
         />
       </Routes>
     </BrowserRouter>
+    </MantineProvider>
 
   );
 }

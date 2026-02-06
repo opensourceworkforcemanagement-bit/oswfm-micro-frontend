@@ -17,9 +17,10 @@ import {
   TimesheetSummary,
   TimesheetStatus,
   PayPeriod,
-  Employee,
   Weeks,
 } from '../types/timesheet.types';
+
+import { Employee } from '../types/employee.type.ts';
 
 // ============================================================================
 // Timesheet Types
@@ -52,7 +53,7 @@ export interface TimesheetSearchFilters extends SearchParams {
 
 export class TimesheetService extends CommonService<Timesheet> {
   constructor(client: HttpClient) {
-    super(client, 'timesheets');
+    super(client, 'timesheets-normalized');
   }
 
   // =========================================================================

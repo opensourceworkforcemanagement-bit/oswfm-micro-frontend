@@ -6,6 +6,7 @@ export const mfConfig = {
   exposes: {
     "./App": "./src/App",
     "./UserManagement": "./src/pages/UserManagement",
+    "./EmployeeManagement": "./src/pages/EmployeeManagement",
   },
   shared: {
     react: { singleton: true, requiredVersion: deps.react, eager: true },

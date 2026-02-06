@@ -115,10 +115,20 @@ export abstract class BaseConfigManager<T> {
     return config !== null && config !== undefined;
   }
 
-getColumnConfig(key: string): ColumnConfig | undefined {
+  /**
+   * Get column configuration for a specific key
+   * @param key - The column key
+   * @returns ColumnConfig or undefined if not found
+   */
+  getColumnConfig(key: string): ColumnConfig | undefined {
     return this.getDefaultPageConfig().columns[key];
   }
 
+  /**
+   * Get field configuration for a specific key
+   * @param key - The field key
+   * @returns FieldConfig or undefined if not found
+   */
   getFieldConfig(key: string): FieldConfig | undefined {
     return this.getDefaultPageConfig().fields[key];
   }

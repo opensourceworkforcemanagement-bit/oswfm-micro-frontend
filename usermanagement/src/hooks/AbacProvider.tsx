@@ -24,7 +24,6 @@ export interface AbacProviderProps {
   children: ReactNode;
   apiBaseUrl: string;
   apiTimeout?: number;
-  authToken?: string;
   evaluationOptions?: PolicyEvaluationOptions;
 }
 
@@ -42,15 +41,14 @@ export function AbacProvider({
   children,
   apiBaseUrl,
   apiTimeout,
-  authToken,
   evaluationOptions,
 }: AbacProviderProps) {
   const contextValue = useMemo(() => {
     // Create API client
+    // Token is automatically retrieved from SecureTokenStorage via buildHeaders
     const apiClient = new ApiClient({
       baseURL: apiBaseUrl,
       timeout: apiTimeout,
-      headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
     });
 
     // Create API service
@@ -65,7 +63,7 @@ export function AbacProvider({
       refreshPolicies: () => evaluator.refreshCache(),
       clearCache: () => evaluator.clearCache(),
     };
-  }, [apiBaseUrl, apiTimeout, authToken, evaluationOptions]);
+  }, [apiBaseUrl, apiTimeout, evaluationOptions]);
 
   return <AbacContext.Provider value={contextValue}>{children}</AbacContext.Provider>;
 }

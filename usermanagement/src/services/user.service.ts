@@ -16,11 +16,13 @@ import {
 // ============================================================================
 
 export interface User {
-  userId?: string;
-  username: string;
-  email?: string;
+  userId?: number;
+  userName: string;
   firstName?: string;
+  middleName?: string;
   lastName?: string;
+  userStatus?: number;
+  email?: string;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -56,6 +58,86 @@ export interface AuthResponse {
   refreshToken?: string;
   user: User;
   expiresIn?: number;
+}
+
+// ============================================================================
+// Profile Settings Types
+// ============================================================================
+
+export interface UserProfileSetting {
+  profileSettingId?: number;
+  userId: number;
+  settingKey: string;
+  settingValue: string;
+}
+
+// ============================================================================
+// User Group Types (administrationservice)
+// ============================================================================
+
+export interface UserGroupDTO {
+  groupId?: number;
+  groupName: string;
+  description?: string;
+  parentGroupId?: number;
+  parentGroupName?: string;
+  createdAt?: string;
+}
+
+export interface UserGroupMembershipDTO {
+  membershipId?: number;
+  userId: number;
+  username?: string;
+  groupId: number;
+  groupName?: string;
+}
+
+// ============================================================================
+// Subject Attribute Types (administrationservice)
+// ============================================================================
+
+export interface SubjectAttributeDTO {
+  subjectAttrId?: number;
+  attributeId: number;
+  attributeName?: string;
+  attributeValue: string;
+  validFrom?: string;
+  validUntil?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UserSubjectAttributeDTO {
+  id?: number;
+  userId: number;
+  username?: string;
+  subjectAttrId: number;
+  attributeName?: string;
+  attributeValue?: string;
+  createdAt?: string;
+}
+
+// ============================================================================
+// Organization Types (userservice/employeeservice)
+// ============================================================================
+
+export interface OrganizationDTO {
+  organizationId?: number;
+  parentOrganizationId?: number;
+  organization: string;
+  description?: string;
+  status?: number;
+}
+
+// ============================================================================
+// Backend Response Wrapper
+// ============================================================================
+
+export interface CustomResponse<T> {
+  time?: string;
+  httpStatus?: string;
+  isSuccess: boolean;
+  response: T;
 }
 
 // ============================================================================
@@ -187,7 +269,7 @@ export class UserService extends CommonService<User> {
    */
   async deleteAccount(): Promise<ApiResponse<void>> {
     const response = await this.client.delete<void>('/users/me');
-    
+
     if (response.success) {
       await this.client.removeAuthToken();
     }
@@ -198,6 +280,34 @@ export class UserService extends CommonService<User> {
   // =========================================================================
   // User Management Methods (Admin)
   // =========================================================================
+
+  /**
+   * Get all users
+   */
+  async getAllUsers(): Promise<ApiResponse<CustomResponse<User[]>>> {
+    return this.client.get<CustomResponse<User[]>>('/users');
+  }
+
+  /**
+   * Get user by ID
+   */
+  async getUserById(userId: number): Promise<ApiResponse<CustomResponse<User>>> {
+    return this.client.get<CustomResponse<User>>(`/users/${userId}`);
+  }
+
+  /**
+   * Update user by ID
+   */
+  async updateUser(userId: number, data: Partial<User>): Promise<ApiResponse<CustomResponse<User>>> {
+    return this.client.put<CustomResponse<User>>(`/users/${userId}`, data);
+  }
+
+  /**
+   * Delete user by ID
+   */
+  async deleteUser(userId: number): Promise<ApiResponse<CustomResponse<void>>> {
+    return this.client.delete<CustomResponse<void>>(`/users/${userId}`);
+  }
 
   /**
    * Get user by username
@@ -230,14 +340,14 @@ export class UserService extends CommonService<User> {
   /**
    * Activate user account
    */
-  async activateUser(userId: string): Promise<ApiResponse<User>> {
+  async activateUser(userId: number): Promise<ApiResponse<User>> {
     return this.client.post<User>(`/users/${userId}/activate`);
   }
 
   /**
    * Deactivate user account
    */
-  async deactivateUser(userId: string): Promise<ApiResponse<User>> {
+  async deactivateUser(userId: number): Promise<ApiResponse<User>> {
     return this.client.post<User>(`/users/${userId}/deactivate`);
   }
 
@@ -246,6 +356,113 @@ export class UserService extends CommonService<User> {
    */
   async searchUsers(query: string, filters?: SearchParams): Promise<ApiResponse<User[]>> {
     return this.search(query, filters);
+  }
+
+  // =========================================================================
+  // Profile Settings Methods
+  // =========================================================================
+
+  /**
+   * Get all profile settings for a user
+   */
+  async getProfileSettings(userId: number): Promise<ApiResponse<CustomResponse<UserProfileSetting[]>>> {
+    return this.client.get<CustomResponse<UserProfileSetting[]>>(`/users/${userId}/profile-settings`);
+  }
+
+  /**
+   * Save (create or update) a profile setting for a user
+   */
+  async saveProfileSetting(userId: number, setting: UserProfileSetting): Promise<ApiResponse<CustomResponse<UserProfileSetting>>> {
+    return this.client.post<CustomResponse<UserProfileSetting>>(`/users/${userId}/profile-settings`, setting);
+  }
+
+  /**
+   * Delete a profile setting
+   */
+  async deleteProfileSetting(userId: number, settingId: number): Promise<ApiResponse<CustomResponse<void>>> {
+    return this.client.delete<CustomResponse<void>>(`/users/${userId}/profile-settings/${settingId}`);
+  }
+
+  // =========================================================================
+  // User Group Methods (via administrationservice gateway)
+  // =========================================================================
+
+  /**
+   * Get all user groups
+   */
+  async getAllGroups(): Promise<ApiResponse<UserGroupDTO[]>> {
+    return this.client.get<UserGroupDTO[]>('/user-groups');
+  }
+
+  /**
+   * Get all groups a user belongs to
+   */
+  async getGroupsForUser(userId: number): Promise<ApiResponse<UserGroupMembershipDTO[]>> {
+    return this.client.get<UserGroupMembershipDTO[]>(`/user-groups/user/${userId}`);
+  }
+
+  /**
+   * Add a user to a group
+   */
+  async addUserToGroup(dto: UserGroupMembershipDTO): Promise<ApiResponse<UserGroupMembershipDTO>> {
+    return this.client.post<UserGroupMembershipDTO>('/user-groups/members', dto);
+  }
+
+  /**
+   * Remove a user from a group
+   */
+  async removeUserFromGroup(membershipId: number): Promise<ApiResponse<void>> {
+    return this.client.delete<void>(`/user-groups/members/${membershipId}`);
+  }
+
+  // =========================================================================
+  // Subject Attribute Methods (via administrationservice gateway)
+  // =========================================================================
+
+  /**
+   * Get all subject attributes
+   */
+  async getAllSubjectAttributes(): Promise<ApiResponse<SubjectAttributeDTO[]>> {
+    return this.client.get<SubjectAttributeDTO[]>('/subject-attributes');
+  }
+
+  /**
+   * Get subject attributes by attribute definition name (e.g., 'role')
+   */
+  async getSubjectAttributesByAttributeName(attributeName: string): Promise<ApiResponse<SubjectAttributeDTO[]>> {
+    return this.client.get<SubjectAttributeDTO[]>(`/subject-attributes/by-attribute-name/${attributeName}`);
+  }
+
+  /**
+   * Get all resolved attributes for a user (direct + group assignments)
+   */
+  async getResolvedAttributesForUser(userId: number): Promise<ApiResponse<SubjectAttributeDTO[]>> {
+    return this.client.get<SubjectAttributeDTO[]>(`/subject-attributes/user/${userId}/resolved`);
+  }
+
+  /**
+   * Assign a subject attribute directly to a user
+   */
+  async assignAttributeToUser(dto: UserSubjectAttributeDTO): Promise<ApiResponse<UserSubjectAttributeDTO>> {
+    return this.client.post<UserSubjectAttributeDTO>('/subject-attributes/assign/user', dto);
+  }
+
+  /**
+   * Remove a direct attribute assignment from a user
+   */
+  async removeAttributeFromUser(userId: number, subjectAttrId: number): Promise<ApiResponse<void>> {
+    return this.client.delete<void>(`/subject-attributes/assign/user/${userId}/${subjectAttrId}`);
+  }
+
+  // =========================================================================
+  // Organization Methods (via userservice gateway)
+  // =========================================================================
+
+  /**
+   * Get all organizations
+   */
+  async getAllOrganizations(): Promise<ApiResponse<OrganizationDTO[]>> {
+    return this.client.get<OrganizationDTO[]>('/organization');
   }
 
   // =========================================================================

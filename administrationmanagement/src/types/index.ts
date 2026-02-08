@@ -90,7 +90,7 @@ export interface UpdateOperationRequest {
 // ============================================================================
 
 export interface AttributeDefinition extends BaseEntity {
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName: string;
   attributeCategoryId: number;
   attributeCategoryName: string;
@@ -118,7 +118,7 @@ export interface UpdateAttributeDefinitionRequest {
 export interface SubjectAttribute extends BaseEntity {
   subjectAttributeId: UUID;
   userId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName?: string;
   attributeValue: string;
   isActive: boolean;
@@ -128,7 +128,7 @@ export interface SubjectAttribute extends BaseEntity {
 
 export interface CreateSubjectAttributeRequest {
   userId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeValue: string;
   effectiveFrom?: string;
   effectiveTo?: string;
@@ -148,7 +148,7 @@ export interface UpdateSubjectAttributeRequest {
 export interface ResourceAttribute extends BaseEntity {
   resourceAttributeId: UUID;
   resourceId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName?: string;
   attributeValue: string;
   isActive: boolean;
@@ -158,7 +158,7 @@ export interface ResourceAttribute extends BaseEntity {
 
 export interface CreateResourceAttributeRequest {
   resourceId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeValue: string;
   effectiveFrom?: string;
   effectiveTo?: string;
@@ -222,7 +222,7 @@ export type LogicalOperator = 'AND' | 'OR';
 export interface PolicyRule extends BaseEntity {
   ruleId: UUID;
   policyId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName?: string;
   operator: RuleOperator;
   comparisonValue: string;
@@ -232,7 +232,7 @@ export interface PolicyRule extends BaseEntity {
 
 export interface CreatePolicyRuleRequest {
   policyId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   operator: RuleOperator;
   comparisonValue: string;
   logicalOperator?: LogicalOperator;

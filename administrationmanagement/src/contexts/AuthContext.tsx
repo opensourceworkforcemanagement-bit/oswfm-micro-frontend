@@ -27,8 +27,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
-const API_BASE_URL = 'http://localhost:3000/api';
+// const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:1110/api';
+const API_BASE_URL = 'http://localhost:1110/api';
 const TOKEN_REFRESH_BUFFER = 60000; // Refresh 1 minute before expiry
 
 interface AuthProviderProps {

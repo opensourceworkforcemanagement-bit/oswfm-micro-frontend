@@ -1057,7 +1057,7 @@ export default function UserManagement() {
     } else {
       // Register new user
       const response = await userService.register({
-        username: userData.userName || '',
+        userName: userData.userName || '',
         email: userData.email || '',
         password: password || '',
         firstName: userData.firstName,

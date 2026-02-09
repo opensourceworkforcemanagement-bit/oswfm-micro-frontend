@@ -474,7 +474,7 @@ const TabSelectField = ({ label, value, onChange, options, required = false }: {
 }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
     <label style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
-      {label}{required && <span style={{ color: 'var(--color-danger)' }}> *yuuyuuy</span>}
+      {label}{required && <span style={{ color: 'var(--color-danger)' }}> *</span>}
     </label>
     <Select.Root value={value} onValueChange={onChange}>
       <Select.Trigger className={combineClasses(
@@ -566,7 +566,7 @@ const createInitialFormState = (employee: Employee | null): EmployeeFormState =>
 const tabStyle: React.CSSProperties = {
   padding: 'var(--spacing-sm) var(--spacing-lg)', border: 'none', backgroundColor: 'transparent',
   fontSize: 'var(--font-size-sm)', fontWeight: 500, cursor: 'pointer',
-  borderBottom: '2px solid transparent', color: 'var(--color-tab-inactive)',
+  borderBottom: '2px solid transparent', color: 'var(--color-tab-active)',
 };
 
 const gridStyle: React.CSSProperties = {
@@ -623,7 +623,7 @@ const EmployeeForm = ({ employee, onSave, onCancel, isNew }: {
 
       <div style={{ backgroundColor: 'var(--color-background)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
         <Tabs.Root defaultValue="employee">
-          <Tabs.List style={{ display: 'flex', flexWrap: 'wrap', borderBottom: '1px solid var(--color-border)', padding: '0 var(--spacing-md)' }}>
+          <Tabs.List style={{ display: 'flex', flexWrap: 'wrap', borderBottom: '15px solid var(--color-border)', padding: '0 var(--spacing-md)' }}>
             <Tabs.Trigger value="employee" style={tabStyle}>Employee</Tabs.Trigger>
             <Tabs.Trigger value="address" style={tabStyle}>Address</Tabs.Trigger>
             <Tabs.Trigger value="department" style={tabStyle}>Department</Tabs.Trigger>

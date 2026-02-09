@@ -84,5 +84,5 @@ class APIClient {
 }
 
 export const apiClient = new APIClient(  
-     'http://localhost:3000/api'
+     'http://localhost:1110/api'
 );

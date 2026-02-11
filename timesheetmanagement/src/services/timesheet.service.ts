@@ -71,7 +71,7 @@ export class TimesheetService extends CommonService<Timesheet> {
    * Get timesheet summaries for directory listing
    */
   async getTimesheetSummaries(filters?: TimesheetSearchFilters): Promise<ApiResponse<TimesheetSummary[]>> {
-    return this.client.get<TimesheetSummary[]>(`/${this.resourcePath}/summaries`, filters);
+    return this.client.get<TimesheetSummary[]>(`/timesheet-summary`, filters);
   }
 
   /**

@@ -1,7 +1,7 @@
 import ReactDOM from "react-dom/client";
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { Menu, Home, Users, Settings, X, Bell, Share2, ChevronDown, ChevronRight, Check, Activity, PersonStandingIcon, Shield  } from 'lucide-react';
+import { Menu, Home, Users, Settings, X, Bell, Share2, ChevronDown, ChevronRight, Check, Activity, PersonStandingIcon, Shield, Calendar, Clock  } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
 import * as Switch from '@radix-ui/react-switch';
@@ -14,6 +14,7 @@ const WorkCodeManagementComp = React.lazy(() => import('timesheetmanagement/Work
 const TimesheetManagementComp = React.lazy(() => import('timesheetmanagement/TimesheetManagement'));
 const EmployeeManagementComp = React.lazy(() => import('usermanagement/EmployeeManagement'));
 const AccessControlComp = React.lazy(() => import('administrationmanagement/administrationmanagement'));
+const PayPeriodManagementComp = React.lazy(() => import('timesheetmanagement/PayPeriodManagement'));
 
 // Shared State Context
 const SharedStateContext = createContext();
@@ -51,7 +52,6 @@ function SharedStateProvider({ children }) {
     assignment: [],
     notifications: [],
     theme: 'light',
-    selectedRole: null,
     selectedUser: null, 
     isLoginedIn: false
   });
@@ -59,15 +59,6 @@ function SharedStateProvider({ children }) {
   const updateSharedState = (key, value) => {
     setSharedState(prev => ({ ...prev, [key]: value }));
     eventBus.publish('stateChanged', { key, value });
-  };
-
-  const assignEmployeeToRole = (role) => {
-    setSharedState(prev => ({
-      ...prev,
-      assignment: [...prev.assignment, role]
-    }));
-    eventBus.publish('assignmentUpdated', { assignment: [...sharedState.assignment, role] });
-    addNotification(`Added ${role.name} to assignment`);
   };
 
   const addNotification = (message) => {
@@ -82,11 +73,6 @@ function SharedStateProvider({ children }) {
     }));
   };
 
-  const selectRole = (role) => {
-    setSharedState(prev => ({ ...prev, selectedRole: role }));
-    eventBus.publish('roleSelected', role);
-  };
-
   const selectUser = (user) => {
     setSharedState(prev => ({ ...prev, selectedUser: user }));
     eventBus.publish('userSelected', user);
@@ -96,9 +82,7 @@ function SharedStateProvider({ children }) {
     <SharedStateContext.Provider value={{
       sharedState,
       updateSharedState,
-      assignEmployeeToRole,
       addNotification,
-      selectRole,
       selectUser,
       eventBus
     }}>
@@ -148,7 +132,7 @@ const Dashboard = () => {
       <div className="mb-4 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="flex items-center gap-2 text-xs sm:text-sm text-blue-800">
           <Share2 size={16} className="flex-shrink-0" />
-          <span className="break-words">Logged in as: <strong>{sharedState.user.name}</strong> ({sharedState.user.role})</span>
+          <span className="break-words">Logged in as: <strong>{sharedState.user.name}</strong> </span>
         </div>
       </div>
 
@@ -179,119 +163,6 @@ const Dashboard = () => {
             ))}
           </ul>
         )}
-      </div>
-    </div>
-  );
-};
-
-// Roles Module
-const Roles = () => {
-  const { sharedState, assignEmployeeToRole, selectRole, addNotification } = useSharedState();
-  const [roles] = useState([
-    { id: 1, name: 'Admin', permission: 'Add Work Codes', totalusersassignedrole: 45 },
-    { id: 2, name: 'Supervisor', permission: 'Create Accounts', totalusersassignedrole: 23 },
-    { id: 3, name: 'DevOps Admin', permission: 'Generate API Keys', totalusersassignedrole: 67 },
-    { id: 4, name: 'Work Force Admin', permission: 'Create Users', totalusersassignedrole: 156 }
-  ]);
-
-  const handleAssignEmployeeToRole = (role) => {
-    assignEmployeeToRole(role);
-  };
-
-  const handleSelectRole = (role) => {
-    selectRole(role);
-    addNotification(`Viewing details for ${role.name}`);
-  };
-
-  useEffect(() => {
-    const unsubscribe = eventBus.subscribe('userSelected', (user) => {
-      addNotification(`User ${user.name} selected - showing personalized roles`);
-    });
-    return unsubscribe;
-  }, [addNotification]);
-
-  return (
-    <div className="p-4 sm:p-6">
-      <div className="mb-4 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-lg">
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-green-800">
-          <Share2 size={16} className="flex-shrink-0" />
-          <span>Shared State: Roles are assigned has <strong>{sharedState.assignment.length}</strong> items</span>
-        </div>
-      </div>
-
-      <h2 className="text-xl sm:text-2xl font-bold mb-4">Roles Module</h2>
-      
-      {sharedState.selectedRole && (
-        <div className="mb-4 p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <h3 className="font-semibold text-sm sm:text-base">Currently Viewing:</h3>
-          <p className="text-xs sm:text-sm">{sharedState.selectedRole.name} - {sharedState.selectedRole.permission}</p>
-        </div>
-      )}
-
-      {/* Mobile: Card View */}
-      <div className="block sm:hidden space-y-3">
-        {roles.map(p => (
-          <div key={p.id} className="bg-white p-4 rounded-lg shadow border border-gray-200">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="font-semibold">{p.name}</h3>
-                <p className="text-lg font-bold text-green-600">{p.permission}</p>
-                <p className="text-sm text-gray-600">Total Employees Assigned Role: {p.totalusersassignedrole}</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleSelectRole(p)}
-                className="flex-1 px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors"
-              >
-                View
-              </button>
-              <button
-                onClick={() => handleAssignEmployeeToRole(p)}
-                className="flex-1 px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition-colors"
-              >
-                Assign Employee to Role
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Desktop: Table View */}
-      <div className="hidden sm:block bg-white rounded-lg shadow overflow-x-auto border border-gray-200">
-        <table className="min-w-full">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Permissiones</th>
-              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Employees Assigned Role</th>
-              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {roles.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50">
-                <td className="px-4 lg:px-6 py-4">{p.name}</td>
-                <td className="px-4 lg:px-6 py-4">{p.permission}</td>
-                <td className="px-4 lg:px-6 py-4">{p.totalusersassignedrole}</td>
-                <td className="px-4 lg:px-6 py-4">
-                  <button
-                    onClick={() => handleSelectRole(p)}
-                    className="mr-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors"
-                  >
-                    View
-                  </button>
-                  <button
-                    onClick={() => handleAssignEmployeeToRole(p)}
-                    className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition-colors"
-                  >
-                    Assign Role to employee
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   );
@@ -394,11 +265,25 @@ const SettingsModule = () => {
 // Micro Frontend Registry
 const microFrontends = {
   dashboard: { component: Dashboard, name: 'Dashboard', icon: Home, path: '/' },
-  roles: { component: Roles, name: 'Roles', icon: PersonStandingIcon, path: '/roles' },
-  users: { component: UserManagementComp, name: 'Users', icon: Users, path: '/users' },
-  emplopyees: { component: EmployeeManagementComp, name: 'Employees', icon: Users, path: '/employees' },
-  workcodes: { component: WorkCodeManagementComp, name: 'Work Codes', icon: Activity, path: '/workcodes' },
-  timesheet: { component: TimesheetManagementComp, name: 'Timesheet Management', icon: Check, path: '/timesheet' },
+  usermanagement: {
+    name: 'User Management',
+    icon: Users,
+    path: '/users',
+    children: {
+      users: { component: UserManagementComp, name: 'Users', icon: Users, path: '/users' },
+      employees: { component: EmployeeManagementComp, name: 'Employees', icon: PersonStandingIcon, path: '/employees' },
+    }
+  },
+  timesheetmanagement: {
+    name: 'Timesheet Management',
+    icon: Check,
+    path: '/timesheet',
+    children: {
+      timesheet: { component: TimesheetManagementComp, name: 'Timesheet', icon: Clock, path: '/timesheet' },
+      payperiods: { component: PayPeriodManagementComp, name: 'Pay Period', icon: Calendar, path: '/pay-periods' },
+      workcodes: { component: WorkCodeManagementComp, name: 'Work Codes', icon: Activity, path: '/workcodes' },
+    }
+  },
   administrationmanagement: {
     name: 'Administration Management',
     icon: Shield,
@@ -695,20 +580,6 @@ export default function MicroFrontendHost() {
   }
 
   return (
-    // <BrowserRouter>
-    //   <SharedStateProvider>
-    //     <Layout onLogout={() => setIsAuthenticated(false)}>
-    //       <Routes>
-    //         <Route path="/" element={<Dashboard />} />
-    //         <Route path="/users/*" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><UserManagementComp /></React.Suspense>} />
-    //         <Route path="/roles" element={<Roles />} />
-    //         <Route path="/workcodes/*" element={<React.Suspense fallback={<div className="p-6">Loading...</div>}><WorkCodeManagementComp /></React.Suspense>} />
-    //         <Route path="/settings" element={<SettingsModule />} />
-    //         <Route path="*" element={<Navigate to="/" replace />} />
-    //       </Routes>
-    //     </Layout>
-    //   </SharedStateProvider>
-    // </BrowserRouter>
  <MantineProvider >
      <BrowserRouter>
       <Routes>
@@ -748,7 +619,6 @@ export default function MicroFrontendHost() {
                         <EmployeeManagementComp />
                       </React.Suspense>
                     } />
-                    <Route path="/roles" element={<Roles />} />
                     <Route 
                       path="/workcodes/*" 
                       element={
@@ -760,6 +630,11 @@ export default function MicroFrontendHost() {
                     <Route path="/timesheet/*" element={
                       <React.Suspense fallback={<div className="p-6">Loading...</div>}>
                         <TimesheetManagementComp />
+                      </React.Suspense>
+                    } />
+                    <Route path="/pay-periods/*" element={
+                      <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                        <PayPeriodManagementComp />
                       </React.Suspense>
                     } />
                     <Route path="/administration/access-control/*" element={

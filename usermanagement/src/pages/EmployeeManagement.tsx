@@ -13,7 +13,7 @@ import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import 'mantine-react-table/styles.css';
 
-import { Employee, EmployeesRequest } from '../types/employee.types.ts';
+import { Employee, EmployeesRequest, CreateEmployeeWithUserRequest } from '../types/employee.types.ts';
 import { createEmployeeService } from '../services/employee.service.ts';
 import { createHttpClient, ApiResponse } from '../services/common.services.ts';
 import '../themes/brand-a.css';
@@ -515,6 +515,8 @@ const TabSelectField = ({ label, value, onChange, options, required = false }: {
 
 interface EmployeeFormState {
   employee: Partial<Employee>;
+  createUser: boolean;
+  password: string;
   address: Record<string, string>;
   department: Record<string, string>;
   emailAddress: Record<string, string>;
@@ -538,6 +540,8 @@ interface EmployeeFormState {
 
 const createInitialFormState = (employee: Employee | null): EmployeeFormState => ({
   employee: employee || { employeeIdentifier: '', userName: '', firstName: '', middleName: '', lastName: '', status: 1 },
+  createUser: false,
+  password: '',
   address: { addressLine1: '', addressLine2: '', city: '', state: '', zipCode: '', country: '', isPrimary: 'false' },
   department: { department: '', description: '', status: '1' },
   emailAddress: { employeeId: '', email: '', type: '', isPrimary: 'false' },
@@ -585,11 +589,12 @@ const boolSelectOptions = [
 
 const EmployeeForm = ({ employee, onSave, onCancel, isNew }: {
   employee: Employee | null;
-  onSave: (data: Partial<Employee>) => void;
+  onSave: (data: Partial<Employee>, createUser: boolean, password: string) => void;
   onCancel: () => void;
   isNew: boolean;
 }) => {
   const [formState, setFormState] = useState<EmployeeFormState>(() => createInitialFormState(employee));
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const saveAction = EmployeeManagementConfigManager.getActionConfig('save');
   const cancelAction = EmployeeManagementConfigManager.getActionConfig('cancel');
@@ -598,12 +603,17 @@ const EmployeeForm = ({ employee, onSave, onCancel, isNew }: {
   const updateEmployeeField = (field: string, value: string | number) =>
     setFormState(prev => ({ ...prev, employee: { ...prev.employee, [field]: value } }));
 
-  const updateTabField = (tab: keyof Omit<EmployeeFormState, 'employee'>, field: string, value: string) =>
+  const updateTabField = (tab: keyof Omit<EmployeeFormState, 'employee' | 'createUser' | 'password'>, field: string, value: string) =>
     setFormState(prev => ({ ...prev, [tab]: { ...prev[tab], [field]: value } }));
 
   const handleSave = () => {
     if (!saveAction?.enabled) return;
-    onSave(formState.employee);
+    setValidationError(null);
+    if (formState.createUser && !formState.password.trim()) {
+      setValidationError('Password is required when "Create User" is checked.');
+      return;
+    }
+    onSave(formState.employee, formState.createUser, formState.password);
   };
 
   return (
@@ -657,6 +667,52 @@ const EmployeeForm = ({ employee, onSave, onCancel, isNew }: {
                 <InputField fieldKey="lastName" value={formState.employee.lastName || ''} onChange={v => updateEmployeeField('lastName', v)} />
                 <SelectField fieldKey="status" value={String(formState.employee.status ?? 1)} onChange={v => updateEmployeeField('status', Number(v))} options={statusOptions.map(o => ({ value: String(o.value), label: o.label }))} />
               </div>
+              {isNew && (
+                <div style={{ marginTop: 'var(--spacing-lg)', maxWidth: '600px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)' }}>
+                    <input
+                      id="createUser"
+                      type="checkbox"
+                      checked={formState.createUser}
+                      onChange={e => setFormState(prev => ({
+                        ...prev,
+                        createUser: e.target.checked,
+                        password: e.target.checked ? prev.password : '',
+                      }))}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="createUser" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', fontWeight: 500, cursor: 'pointer' }}>
+                      Create User
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                    <label htmlFor="password" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                      Password{formState.createUser && <span style={{ color: 'var(--color-danger)' }}> *</span>}
+                    </label>
+                    <input
+                      id="password"
+                      type="password"
+                      value={formState.password}
+                      onChange={e => setFormState(prev => ({ ...prev, password: e.target.value }))}
+                      disabled={!formState.createUser}
+                      style={{
+                        padding: 'var(--spacing-sm) var(--spacing-md)',
+                        backgroundColor: formState.createUser ? 'var(--color-background)' : 'var(--color-surface)',
+                        border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                        fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', outline: 'none',
+                        opacity: formState.createUser ? 1 : 0.6,
+                        cursor: formState.createUser ? 'text' : 'not-allowed',
+                        maxWidth: '285px',
+                      }}
+                    />
+                  </div>
+                  {validationError && (
+                    <div style={{ marginTop: 'var(--spacing-sm)', color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)' }}>
+                      {validationError}
+                    </div>
+                  )}
+                </div>
+              )}
             </Tabs.Content>
 
             {/* Address Tab */}
@@ -913,7 +969,7 @@ export default function EmployeeManagement() {
     setCurrentPage('form');
   };
 
-  const handleSave = async (employeeData: Partial<Employee>) => {
+  const handleSave = async (employeeData: Partial<Employee>, createUser: boolean, password: string) => {
 
     const request: EmployeesRequest = {
         employeeIdentifier: employeeData.employeeIdentifier ?? '',
@@ -924,15 +980,31 @@ export default function EmployeeManagement() {
         userName: employeeData.userName ?? '',
       };
 
-    if (selectedEmployee) {      
+    if (selectedEmployee) {
       await employeeService.updateEmployee(selectedEmployee.employeeId, request);
       setEmployees(employees.map(e =>
         e.employeeId === selectedEmployee.employeeId ? { ...selectedEmployee, ...employeeData } : e
       ));
     } else {
-      const response = await employeeService.createEmployee(request);
-      if (response.success && response.data) {
-        setEmployees([...employees, response.data]);
+      if (createUser) {
+        const createWithUserRequest: CreateEmployeeWithUserRequest = {
+          ...request,
+          createUser: true,
+          password,
+        };
+        const response = await employeeService.createEmployeeWithUser(createWithUserRequest);
+        if (response.success && response.data) {
+          setEmployees([...employees, response.data]);
+        } else {
+          const msg = response.error || response.message || 'Failed to create employee with user';
+          setError(msg.includes('already taken') ? 'Username is already taken. Please choose a different username.' : msg);
+          return;
+        }
+      } else {
+        const response = await employeeService.createEmployee(request);
+        if (response.success && response.data) {
+          setEmployees([...employees, response.data]);
+        }
       }
     }
     setCurrentPage('directory');

@@ -74,7 +74,7 @@ const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceC
     if (isCreatingRow && creatingRowData) {
       // For creating rows, update via state to trigger re-render
       const updatedEntry = { ...creatingRowData };
-      if (workforceCode.codeTypeId === 2) {
+      if (workforceCode.codeTypeId === 6) {
         updatedEntry.accountCode = workforceCode;
       } else {
         updatedEntry.workforceCode = workforceCode;
@@ -85,7 +85,7 @@ const MantineReactTimeSheetTable = ({ availableAccountCodes, availableWorkforceC
       setData((prev) => {
         const newData = [...prev];
         const entry = { ...newData[selectedRowIndex] };
-        if (workforceCode.codeTypeId === 2) {
+        if (workforceCode.codeTypeId === 6) {
           entry.accountCode = workforceCode;
         } else {
           entry.workforceCode = workforceCode;

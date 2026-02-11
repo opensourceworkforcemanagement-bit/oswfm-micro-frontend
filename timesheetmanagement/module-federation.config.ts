@@ -7,6 +7,7 @@ export const mfConfig = {
     "./App": "./src/App",
     "./WorkCodeManagement": "./src/pages/WorkCodeManagement",
     "./TimesheetManagement": "./src/pages/TimesheetManagement",
+    "./PayPeriodManagement": "./src/pages/PayPeriodManagement",
   },
   shared: {
     react: { singleton: true, requiredVersion: deps.react, eager: true },

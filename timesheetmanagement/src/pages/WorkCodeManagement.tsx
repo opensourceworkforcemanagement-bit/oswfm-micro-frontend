@@ -1,14 +1,20 @@
 // src/components/WorkCodeManagement/WorkCodeManagement.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  MantineReactTable,
+  useMantineReactTable,
+  type MRT_ColumnDef,
+} from 'mantine-react-table';
+import { Box, MantineProvider } from '@mantine/core';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Select from '@radix-ui/react-select';
 import * as Label from '@radix-ui/react-label';
 import { Flex, Text, Button } from "@radix-ui/themes";
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
-import { ArrowLeft, Plus, Pencil, Trash2, ChevronDown, Loader2, Search, Check, AlertCircle } from 'lucide-react';
-import { ReactTabulator } from 'react-tabulator';
-import 'react-tabulator/css/tabulator.min.css';
-import 'react-tabulator/css/bootstrap/tabulator_bootstrap.min.css';
+import { ArrowLeft, Plus, Pencil, Trash2, ChevronDown, Loader2, Check, AlertCircle, RefreshCw } from 'lucide-react';
+import '@mantine/core/styles.css';
+import '@mantine/dates/styles.css';
+import 'mantine-react-table/styles.css';
 import '../themes/brand-a.css';
 import '../index.css';
 
@@ -43,11 +49,11 @@ const WorkCodeList: React.FC<{
   isLoading: boolean;
   onSelectWorkCode: (workCode: WorkforceCode) => void;
   onAddNew: () => void;
+  onRefresh: () => void;
   onDelete: (id: number) => void;
   pageConfig: WorkCodePageConfig;
   theme?: string;
-}> = ({ workCodes, isLoading, onSelectWorkCode, onAddNew, onDelete, pageConfig, theme }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+}> = ({ workCodes, isLoading, onSelectWorkCode, onAddNew, onRefresh, onDelete, pageConfig, theme }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -56,40 +62,6 @@ const WorkCodeList: React.FC<{
   const editActionConfig = pageConfig.actions.edit;
   const deleteActionConfig = pageConfig.actions.delete;
 
-  const visibleColumns = useMemo(() => {
-    return Object.entries(pageConfig.columns)
-      .filter(([_, config]) => config.visible)
-      .map(([key, config]) => ({ key, ...config }));
-  }, [pageConfig.columns]);
-
-  const visibleFieldNames = useMemo(() => {
-    return Object.entries(pageConfig.fields)
-      .filter(([_, config]) => config.visible)
-      .map(([key, _]) => key);
-  }, [pageConfig.fields]);
-
-  const filteredWorkCodes = useMemo(() => {
-    if (!searchQuery.trim()) return workCodes;
-
-    const query = searchQuery.toLowerCase();
-    
-    return workCodes.filter(code => {
-      return visibleFieldNames.some(fieldName => {
-        const value = code[fieldName as keyof WorkforceCode];
-        if (value === null || value === undefined) return false;
-
-        if (fieldName === 'status') {
-          return WorkCodeService.getStatusLabel(value as number).toLowerCase().includes(query);
-        }
-        return String(value).toLowerCase().includes(query);
-      });
-    });
-  }, [workCodes, searchQuery, visibleFieldNames]);
-
-  const hasVisibleActions = useMemo(() => {
-    return editActionConfig.visible || deleteActionConfig.visible;
-  }, [editActionConfig, deleteActionConfig]);
-
   const openDeleteDialog = (id: number) => {
     setDeletingId(id);
     setDeleteDialogOpen(true);
@@ -97,7 +69,7 @@ const WorkCodeList: React.FC<{
 
   const handleDelete = async () => {
     if (!deletingId) return;
-    
+
     setIsDeleting(true);
     try {
       await onDelete(deletingId);
@@ -110,9 +82,199 @@ const WorkCodeList: React.FC<{
     }
   };
 
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value.substring(0, 100));
-  };
+  const visibleColumns = useMemo(() => {
+    return Object.entries(pageConfig.columns)
+      .filter(([_, config]) => config.visible)
+      .map(([key, config]) => ({ key, ...config }));
+  }, [pageConfig.columns]);
+
+  const hasVisibleActions = useMemo(() => {
+    return editActionConfig.visible || deleteActionConfig.visible;
+  }, [editActionConfig, deleteActionConfig]);
+
+  const columns = useMemo<MRT_ColumnDef<WorkforceCode>[]>(() => {
+    const cols: MRT_ColumnDef<WorkforceCode>[] = visibleColumns.map(col => {
+      const colDef: MRT_ColumnDef<WorkforceCode> = {
+        accessorKey: col.key as keyof WorkforceCode,
+        header: col.label,
+        size: 150,
+      };
+
+      if (col.key === 'status') {
+        colDef.Cell = ({ cell }) => {
+          const value = cell.getValue<number>();
+          const statusClass = WorkCodeService.getStatusColor(value as any);
+          return (
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusClass}`}>
+              {WorkCodeService.getStatusLabel(value as any)}
+            </span>
+          );
+        };
+        colDef.filterVariant = 'select';
+        colDef.mantineFilterSelectProps = {
+          data: WorkCodeService.getStatusOptions().map(o => ({
+            value: String(o.value),
+            label: o.label,
+          })),
+        };
+      }
+
+      if (col.key === 'effectiveDate' || col.key === 'expirationDate') {
+        colDef.Cell = ({ cell }) => {
+          const value = cell.getValue<Date | string>();
+          if (!value) return '-';
+          return new Date(value).toLocaleDateString();
+        };
+      }
+
+      return colDef;
+    });
+
+    if (hasVisibleActions) {
+      cols.push({
+        id: 'actions',
+        header: 'Actions',
+        size: 150,
+        enableColumnFilter: false,
+        enableSorting: false,
+        Cell: ({ row }) => (
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+            {editActionConfig.visible && editActionConfig.enabled && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectWorkCode(row.original);
+                }}
+                className={combineClasses(commonClasses.primaryButton)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  backgroundColor: 'var(--color-primary)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+              >
+                <Pencil size={14} /> Edit
+              </button>
+            )}
+            {deleteActionConfig.visible && deleteActionConfig.enabled && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openDeleteDialog(row.original.id);
+                }}
+                className={combineClasses(commonClasses.dangerButton)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+              >
+                <Trash2 size={14} /> Delete
+              </button>
+            )}
+          </div>
+        ),
+      });
+    }
+
+    return cols;
+  }, [visibleColumns, hasVisibleActions, editActionConfig, deleteActionConfig, onSelectWorkCode]);
+
+  const table = useMantineReactTable({
+    columns,
+    data: workCodes,
+    enableColumnFilters: true,
+    enableColumnFilterModes: false,
+    enableGlobalFilter: true,
+    enableSorting: true,
+    enablePagination: true,
+    enableEditing: false,
+    enableRowSelection: false,
+    enableRowActions: false,
+    enableColumnOrdering: true,
+    enableFullScreenToggle: false,
+    enableDensityToggle: true,
+    enableStickyHeader: true,
+    enablePinning: false,
+    enableColumnResizing: true,
+    layoutMode: 'semantic',
+    initialState: {
+      density: 'xs',
+      showGlobalFilter: true,
+      pagination: { pageSize: 10, pageIndex: 0 },
+      sorting: [{ id: 'shortCodeValue', desc: false }],
+    },
+    paginationDisplayMode: 'pages',
+    state: {
+      isLoading,
+    },
+    mantineTableProps: {
+      striped: true,
+      withTableBorder: true,
+      withColumnBorders: true,
+    },
+    mantineTableHeadCellProps: {
+      align: 'center',
+    },
+    mantineTableBodyCellProps: {
+      align: 'center',
+    },
+    mantineTableBodyRowProps: ({ row }) => ({
+      onClick: editActionConfig?.enabled ? () => onSelectWorkCode(row.original) : undefined,
+      style: { cursor: editActionConfig?.enabled ? 'pointer' : 'default' },
+    }),
+    renderTopToolbarCustomActions: () => (
+      <Box style={{ display: 'flex', gap: '16px', padding: '8px' }}>
+        {addActionConfig.visible && (
+          <Button
+            onClick={onAddNew}
+            disabled={!addActionConfig.enabled}
+            className={combineClasses(
+              commonClasses.primaryButton,
+              addActionConfig.enabled && themeClasses.primary,
+              addActionConfig.enabled && themeClasses.primaryHover
+            )}
+            style={{
+              cursor: addActionConfig.enabled ? 'pointer' : 'not-allowed',
+              opacity: addActionConfig.enabled ? 1 : 0.6,
+              backgroundColor: !addActionConfig.enabled ? '#9ca3af' : undefined
+            }}
+          >
+            <Plus size={16} />
+            Add Work Code
+          </Button>
+        )}
+        <Button
+          onClick={onRefresh}
+          className={combineClasses(
+            commonClasses.secondaryButton,
+            themeClasses.background,
+            themeClasses.border,
+            themeClasses.textPrimary
+          )}
+          style={{ cursor: 'pointer' }}
+        >
+          <RefreshCw size={16} />
+          Refresh
+        </Button>
+      </Box>
+    ),
+  });
 
   return (
     <div data-theme={theme} className={combineClasses(commonClasses.workCodePage, themeClasses.background)}>
@@ -122,58 +284,6 @@ const WorkCodeList: React.FC<{
           <h1 className={combineClasses(commonClasses.pageTitle, themeClasses.textPrimary)}>
             Work Code Directory
           </h1>
-          {addActionConfig.visible && (
-            <Button
-              onClick={onAddNew}
-              disabled={!addActionConfig.enabled}
-              className={combineClasses(
-                commonClasses.primaryButton,
-                addActionConfig.enabled && themeClasses.primary,
-                addActionConfig.enabled && themeClasses.primaryHover
-              )}
-              style={{
-                cursor: addActionConfig.enabled ? 'pointer' : 'not-allowed',
-                opacity: addActionConfig.enabled ? 1 : 0.6,
-                backgroundColor: !addActionConfig.enabled ? '#9ca3af' : undefined
-              }}
-            >
-              <Plus size={16} />
-              Add Work Code
-            </Button>
-          )}
-        </div>
-
-        {/* Search */}
-        <div className={commonClasses.workCodeSearchWrapper}>
-          <Label.Root 
-            htmlFor="search-input" 
-            className={combineClasses(commonClasses.label, themeClasses.textPrimary)}
-          >
-            Search Work Codes
-          </Label.Root>
-          <div className="relative">
-            <input
-              id="search-input"
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search by any field..."
-              maxLength={100}
-              className={combineClasses(
-                commonClasses.workCodeSearchInput,
-                themeClasses.background,
-                themeClasses.border,
-                themeClasses.textPrimary
-              )}
-            />
-            <Search
-              className={combineClasses(commonClasses.workCodeSearchIcon, themeClasses.textMuted)}
-              size={20}
-            />
-          </div>
-          <span className={combineClasses(commonClasses.workCodeSearchHint, themeClasses.textMuted)}>
-            {searchQuery ? `Found ${filteredWorkCodes.length} result${filteredWorkCodes.length !== 1 ? 's' : ''}` : 'Search across all visible fields'}
-          </span>
         </div>
 
         {/* Table */}
@@ -182,96 +292,7 @@ const WorkCodeList: React.FC<{
           themeClasses.background,
           themeClasses.border
         )}>
-          {isLoading ? (
-            <div className={commonClasses.workCodeLoadingContainer}>
-              <Loader2 className="animate-spin" style={{ color: 'var(--color-primary)' }} size={40} />
-              <span className={combineClasses(commonClasses.workCodeLoadingText, themeClasses.textSecondary)}>
-                Loading work codes...
-              </span>
-            </div>
-          ) : (
-            <ReactTabulator
-              data={filteredWorkCodes}
-              columns={[
-                ...visibleColumns.map(col => ({
-                  title: col.label,
-                  field: col.key,
-                  //headerFilter: 'input',
-                  sorter: 'string',
-                  tooltip: true,
-                  formatter:
-                    col.key === 'status'
-                      ? (cell: any) => {
-                          const value = cell.getValue();
-                          return `<span class="px-2 py-1 text-xs font-medium rounded-full ${WorkCodeService.getStatusColor(
-                            value
-                          )}">${WorkCodeService.getStatusLabel(value)}</span>`;
-                        }
-                      : undefined,
-                })),
-                ...(hasVisibleActions
-                  ? [
-                      {
-                        title: 'Actions',
-                        field: 'actions',
-                        hozAlign: 'center' as const,
-                        headerSort: false,
-                        width: 150,
-                        formatter: (cell: any) => {
-                          const data = cell.getRow().getData();
-                          return `
-                            <div style="display: flex; gap: 8px; justify-content: center;">
-                              ${editActionConfig.visible && editActionConfig.enabled
-                                ? `<Button class="edit-btn" data-id="${data.id}"
-                                    style="padding: 6px; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                    </svg>
-                                  </Button>`
-                                : ''
-                              }
-                              ${deleteActionConfig.visible && deleteActionConfig.enabled
-                                ? `<Button class="delete-btn" data-id="${data.id}"
-                                    style="padding: 6px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                      <polyline points="3 6 5 6 21 6"></polyline>
-                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                    </svg>
-                                  </Button>`
-                                : ''
-                              }
-                            </div>
-                          `;
-                        },
-                      },
-                    ]
-                  : []),
-              ]}
-              options={{
-                layout: 'fitData',
-                pagination: true,
-                paginationSize: 10,
-                height: '600px',
-              }}
-              events={{
-                cellClick: (e: any, cell: any) => {
-                  const target = e.target as HTMLElement;
-                  const editBtn = target.closest('.edit-btn');
-                  const deleteBtn = target.closest('.delete-btn');
-
-                  if (editBtn) {
-                    const id = editBtn.getAttribute('data-id');
-                    const workCode = filteredWorkCodes.find(wc => wc.id === parseInt(id!));
-                    if (workCode) onSelectWorkCode(workCode);
-                  } else if (deleteBtn) {
-                    const id = deleteBtn.getAttribute('data-id');
-                    openDeleteDialog(parseInt(id!));
-                  }
-                },
-              }}
-            />
-          )}
+          <MantineReactTable table={table} />
         </div>
 
         {/* Delete Confirmation Dialog */}
@@ -315,7 +336,7 @@ const WorkCodeList: React.FC<{
                     onClick={handleDelete}
                     disabled={isDeleting}
                     className={combineClasses(commonClasses.dangerButton, 'flex items-center gap-2')}
-                    style={{ 
+                    style={{
                       cursor: isDeleting ? 'not-allowed' : 'pointer',
                       opacity: isDeleting ? 0.6 : 1
                     }}
@@ -828,25 +849,30 @@ const WorkCodeManagement: React.FC<WorkCodeManagementProps> = ({
     }
   };
 
-  return currentPage === 'list' ? (
-    <WorkCodeList
-      workCodes={workCodes}
-      isLoading={isLoading}
-      onSelectWorkCode={handleSelectWorkCode}
-      onAddNew={handleAddNew}
-      onDelete={handleDelete}
-      pageConfig={pageConfig}
-      theme={theme}
-    />
-  ) : (
-    <WorkCodeForm
-      workCode={selectedWorkCode}
-      onSave={handleSave}
-      onCancel={handleCancel}
-      isNew={!selectedWorkCode}
-      pageConfig={pageConfig}
-      theme={theme}
-    />
+  return (
+    <MantineProvider>
+      {currentPage === 'list' ? (
+        <WorkCodeList
+          workCodes={workCodes}
+          isLoading={isLoading}
+          onSelectWorkCode={handleSelectWorkCode}
+          onAddNew={handleAddNew}
+          onRefresh={fetchWorkCodes}
+          onDelete={handleDelete}
+          pageConfig={pageConfig}
+          theme={theme}
+        />
+      ) : (
+        <WorkCodeForm
+          workCode={selectedWorkCode}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          isNew={!selectedWorkCode}
+          pageConfig={pageConfig}
+          theme={theme}
+        />
+      )}
+    </MantineProvider>
   );
 };
 

@@ -11,6 +11,17 @@ export interface EmployeesRequest {
   userName: string;
 }
 
+export interface CreateEmployeeWithUserRequest {
+  employeeIdentifier: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  status?: number;
+  userName: string;
+  createUser: boolean;
+  password?: string;
+}
+
 export interface Employee {
   employeeId: number;
   employeeIdentifier: string;

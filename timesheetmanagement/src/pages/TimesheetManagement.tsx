@@ -1,14 +1,18 @@
 // src/pages/TimesheetManagement.tsx
 import React, { useState, useEffect, useMemo } from 'react';
+import {
+  MantineReactTable,
+  useMantineReactTable,
+  type MRT_ColumnDef,
+} from 'mantine-react-table';
+import { Box, MantineProvider } from '@mantine/core';
 import * as Select from '@radix-ui/react-select';
 import * as Label from '@radix-ui/react-label';
 import { Button } from "@radix-ui/themes";
-import * as AlertDialog from '@radix-ui/react-alert-dialog';
-import { ArrowLeft, Plus, Loader2, Search, Check, ChevronDown } from 'lucide-react';
-import { MantineProvider } from '@mantine/core';
-import { ReactTabulator } from 'react-tabulator';
-import 'react-tabulator/css/tabulator.min.css';
-import 'react-tabulator/css/bootstrap/tabulator_bootstrap.min.css';
+import { ArrowLeft, Plus, Loader2, Check, ChevronDown, RefreshCw, Pencil, Trash2 } from 'lucide-react';
+import '@mantine/core/styles.css';
+import '@mantine/dates/styles.css';
+import 'mantine-react-table/styles.css';
 import '../themes/brand-a.css';
 import '../index.css';
 
@@ -41,8 +45,8 @@ const httpClient = new HttpClient({ baseURL: 'http://localhost:1110/api/v1' });
 const timesheetService = new TimesheetService(httpClient);
 const workCodeService = new WorkCodeService(httpClient);
 
-const employeeHttpClient = new HttpClient({ baseURL: 'http://localhost:1110/api/v1' });
-const employeeService = new EmployeeService(employeeHttpClient);
+//const employeeHttpClient = new HttpClient({ baseURL: 'http://localhost:1110/api/v1' });
+const employeeService = new EmployeeService(httpClient);
 
 
 // ============================================================================
@@ -54,54 +58,226 @@ interface TimesheetManagementProps {
 }
 
 // ============================================================================
+// Table row type for directory view
+// ============================================================================
+
+interface TimesheetTableRow {
+  timesheetId: number;
+  employeeName: string;
+  payPeriodStart: string;
+  payPeriodEnd: string;
+  status: TimesheetStatus;
+  totalHours: number;
+  _original: TimesheetSummary;
+}
+
+// ============================================================================
 // TimesheetList Component (Directory View)
 // ============================================================================
 
 const TimesheetList: React.FC<{
-  timesheets: Timesheet[];
+  timesheets: TimesheetSummary[];
   isLoading: boolean;
   error: string | null;
-  onSelectTimesheet: (timesheet: Timesheet) => void;
+  onSelectTimesheet: (summary: TimesheetSummary) => void;
   onAddNew: () => void;
+  onRefresh: () => void;
   onDelete: (id: number) => void;
   theme?: string;
-}> = ({ timesheets, isLoading, error, onSelectTimesheet, onAddNew, onDelete, theme }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+}> = ({ timesheets, isLoading, error, onSelectTimesheet, onAddNew, onRefresh, onDelete, theme }) => {
 
-  const filteredTimesheets = useMemo(() => {
-    let filtered = timesheets;
-
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(ts => ts.status === statusFilter);
-    }
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(ts => {
-        const employeeName = ts.employee
-          ? `${ts.employee.firstName} ${ts.employee.lastName}`.toLowerCase()
-          : '';
-        return employeeName.includes(query);
-      });
-    }
-
-    return filtered;
-  }, [timesheets, searchQuery, statusFilter]);
-
-  const tableData = useMemo(() => {
-    return filteredTimesheets.map(ts => ({
+  const tableData = useMemo<TimesheetTableRow[]>(() => {
+    return timesheets.map(ts => ({
       timesheetId: ts.timesheetId,
-      employeeName: ts.employee ? `${ts.employee.firstName} ${ts.employee.lastName}` : 'Unknown',
-      payPeriodStart: ts.payPeriod ? new Date(ts.payPeriod.startDate).toLocaleDateString() : '-',
-      payPeriodEnd: ts.payPeriod ? new Date(ts.payPeriod.endDate).toLocaleDateString() : '-',
+      employeeName: ts.employeeName || 'Unknown',
+      payPeriodStart: ts.payPeriodStartDate ? new Date(ts.payPeriodStartDate).toLocaleDateString() : '-',
+      payPeriodEnd: ts.payPeriodEndDate ? new Date(ts.payPeriodEndDate).toLocaleDateString() : '-',
       status: ts.status,
-      totalHours: TimesheetService.calculateTimesheetTotal(ts),
+      totalHours: ts.totalHours ?? 0,
       _original: ts,
     }));
-  }, [filteredTimesheets]);
+  }, [timesheets]);
+
+  const columns = useMemo<MRT_ColumnDef<TimesheetTableRow>[]>(() => [
+    {
+      accessorKey: 'employeeName',
+      header: 'Employee Name',
+      size: 200,
+    },
+    {
+      accessorKey: 'payPeriodStart',
+      header: 'Pay Period Start',
+      size: 150,
+      enableColumnFilter: false,
+    },
+    {
+      accessorKey: 'payPeriodEnd',
+      header: 'Pay Period End',
+      size: 150,
+      enableColumnFilter: false,
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      size: 130,
+      Cell: ({ cell }) => {
+        const status = cell.getValue<TimesheetStatus>();
+        const colorClass = TimesheetService.getStatusColor(status);
+        return (
+          <span className={`px-2 py-1 text-xs font-medium rounded-full ${colorClass}`}>
+            {TimesheetService.getStatusLabel(status)}
+          </span>
+        );
+      },
+      filterVariant: 'select',
+      mantineFilterSelectProps: {
+        data: TimesheetService.getStatusOptions().map(o => ({
+          value: o.value,
+          label: o.label,
+        })),
+      },
+    },
+    {
+      accessorKey: 'totalHours',
+      header: 'Total Hours',
+      size: 120,
+      enableColumnFilter: false,
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      size: 180,
+      enableColumnFilter: false,
+      enableSorting: false,
+      Cell: ({ row }) => (
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectTimesheet(row.original._original);
+            }}
+            style={{
+              padding: '4px 12px',
+              fontSize: '12px',
+              fontWeight: 500,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            <Pencil size={14} /> Edit
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm('Are you sure you want to delete this timesheet?')) {
+                onDelete(row.original.timesheetId);
+              }
+            }}
+            style={{
+              padding: '4px 12px',
+              fontSize: '12px',
+              fontWeight: 500,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            <Trash2 size={14} /> Delete
+          </button>
+        </div>
+      ),
+    },
+  ], [onSelectTimesheet, onDelete]);
+
+  const table = useMantineReactTable({
+    columns,
+    data: tableData,
+    enableColumnFilters: true,
+    enableColumnFilterModes: false,
+    enableGlobalFilter: true,
+    enableSorting: true,
+    enablePagination: true,
+    enableEditing: false,
+    enableRowSelection: false,
+    enableRowActions: false,
+    enableColumnOrdering: true,
+    enableFullScreenToggle: false,
+    enableDensityToggle: true,
+    enableStickyHeader: true,
+    enablePinning: false,
+    enableColumnResizing: true,
+    layoutMode: 'semantic',
+    initialState: {
+      density: 'xs',
+      showGlobalFilter: true,
+      pagination: { pageSize: 10, pageIndex: 0 },
+      sorting: [{ id: 'employeeName', desc: false }],
+    },
+    paginationDisplayMode: 'pages',
+    state: {
+      isLoading,
+      showAlertBanner: !!error,
+    },
+    mantineToolbarAlertBannerProps: error
+      ? { color: 'red', children: error }
+      : undefined,
+    mantineTableProps: {
+      striped: true,
+      withTableBorder: true,
+      withColumnBorders: true,
+    },
+    mantineTableHeadCellProps: {
+      align: 'center',
+    },
+    mantineTableBodyCellProps: {
+      align: 'center',
+    },
+    mantineTableBodyRowProps: ({ row }) => ({
+      onClick: () => onSelectTimesheet(row.original._original),
+      style: { cursor: 'pointer' },
+    }),
+    renderTopToolbarCustomActions: () => (
+      <Box style={{ display: 'flex', gap: '16px', padding: '8px' }}>
+        <Button
+          onClick={onAddNew}
+          className={combineClasses(
+            commonClasses.primaryButton,
+            themeClasses.primary,
+            themeClasses.primaryHover
+          )}
+        >
+          <Plus size={16} />
+          New Timesheet
+        </Button>
+        <Button
+          onClick={onRefresh}
+          className={combineClasses(
+            commonClasses.secondaryButton,
+            themeClasses.background,
+            themeClasses.border,
+            themeClasses.textPrimary
+          )}
+          style={{ cursor: 'pointer' }}
+        >
+          <RefreshCw size={16} />
+          Refresh
+        </Button>
+      </Box>
+    ),
+  });
 
   return (
     <div data-theme={theme} className={combineClasses(commonClasses.workCodePage, themeClasses.background)}>
@@ -111,113 +287,6 @@ const TimesheetList: React.FC<{
           <h1 className={combineClasses(commonClasses.pageTitle, themeClasses.textPrimary)}>
             Timesheet Directory
           </h1>
-          <Button
-            onClick={onAddNew}
-            className={combineClasses(
-              commonClasses.primaryButton,
-              themeClasses.primary,
-              themeClasses.primaryHover
-            )}
-          >
-            <Plus size={16} />
-            New Timesheet
-          </Button>
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-4 mb-4">
-          {/* Search */}
-          <div className="flex-1">
-            <Label.Root
-              htmlFor="search-input"
-              className={combineClasses(commonClasses.label, themeClasses.textPrimary)}
-            >
-              Search by Employee Name
-            </Label.Root>
-            <div className="relative">
-              <input
-                id="search-input"
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search employees..."
-                maxLength={100}
-                className={combineClasses(
-                  commonClasses.workCodeSearchInput,
-                  themeClasses.background,
-                  themeClasses.border,
-                  themeClasses.textPrimary
-                )}
-              />
-              <Search
-                className={combineClasses(commonClasses.workCodeSearchIcon, themeClasses.textMuted)}
-                size={20}
-              />
-            </div>
-          </div>
-
-          {/* Status Filter */}
-          <div className="w-48">
-            <Label.Root className={combineClasses(commonClasses.label, themeClasses.textPrimary)}>
-              Status
-            </Label.Root>
-            <Select.Root value={statusFilter} onValueChange={setStatusFilter}>
-              <Select.Trigger
-                className={combineClasses(
-                  commonClasses.workCodeSelectTrigger,
-                  themeClasses.background,
-                  themeClasses.border,
-                  themeClasses.textPrimary
-                )}
-              >
-                <Select.Value />
-                <Select.Icon>
-                  <ChevronDown size={16} />
-                </Select.Icon>
-              </Select.Trigger>
-              <Select.Portal>
-                <Select.Content
-                  className={combineClasses(
-                    commonClasses.workCodeSelectContent,
-                    themeClasses.selectBackground,
-                    themeClasses.border
-                  )}
-                >
-                  <Select.Viewport className="p-1">
-                    <Select.Item
-                      value="all"
-                      className={combineClasses(commonClasses.workCodeSelectItem, themeClasses.textPrimary)}
-                    >
-                      <Select.ItemText>All Statuses</Select.ItemText>
-                      <Select.ItemIndicator className="ml-auto"><Check size={16} /></Select.ItemIndicator>
-                    </Select.Item>
-                    {TimesheetService.getStatusOptions().map(option => (
-                      <Select.Item
-                        key={option.value}
-                        value={option.value}
-                        className={combineClasses(commonClasses.workCodeSelectItem, themeClasses.textPrimary)}
-                      >
-                        <Select.ItemText>{option.label}</Select.ItemText>
-                        <Select.ItemIndicator className="ml-auto"><Check size={16} /></Select.ItemIndicator>
-                      </Select.Item>
-                    ))}
-                  </Select.Viewport>
-                </Select.Content>
-              </Select.Portal>
-            </Select.Root>
-          </div>
-        </div>
-
-        {/* Error Alert */}
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800">
-            {error}
-          </div>
-        )}
-
-        {/* Results count */}
-        <div className={combineClasses('text-sm mb-2', themeClasses.textMuted)}>
-          Showing {filteredTimesheets.length} of {timesheets.length} timesheets
         </div>
 
         {/* Table */}
@@ -226,91 +295,7 @@ const TimesheetList: React.FC<{
           themeClasses.background,
           themeClasses.border
         )}>
-          {isLoading ? (
-            <div className={commonClasses.workCodeLoadingContainer}>
-              <Loader2 className="animate-spin" style={{ color: 'var(--color-primary)' }} size={40} />
-              <span className={combineClasses(commonClasses.workCodeLoadingText, themeClasses.textSecondary)}>
-                Loading timesheets...
-              </span>
-            </div>
-          ) : (
-            <ReactTabulator
-              data={tableData}
-              columns={[
-                {
-                  title: 'Employee Name',
-                  field: 'employeeName',
-                  sorter: 'string',
-                  headerFilter: 'input',
-                },
-                {
-                  title: 'Pay Period Start',
-                  field: 'payPeriodStart',
-                  sorter: 'date',
-                },
-                {
-                  title: 'Pay Period End',
-                  field: 'payPeriodEnd',
-                  sorter: 'date',
-                },
-                {
-                  title: 'Status',
-                  field: 'status',
-                  sorter: 'string',
-                  formatter: (cell: any) => {
-                    const status = cell.getValue() as TimesheetStatus;
-                    const colorClass = TimesheetService.getStatusColor(status);
-                    return `<span class="px-2 py-1 text-xs font-medium rounded-full ${colorClass}">${TimesheetService.getStatusLabel(status)}</span>`;
-                  },
-                },
-                {
-                  title: 'Total Hours',
-                  field: 'totalHours',
-                  sorter: 'number',
-                  hozAlign: 'right',
-                },
-                {
-                  title: 'Actions',
-                  field: 'actions',
-                  hozAlign: 'center',
-                  headerSort: false,
-                  width: 180,
-                  formatter: (cell: any) => {
-                    const data = cell.getRow().getData();
-                    return `
-                      <div style="display: flex; gap: 8px; justify-content: center;">
-                        <button class="edit-btn px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600" data-id="${data.timesheetId}">Edit</button>
-                        <button class="delete-btn px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600" data-id="${data.timesheetId}">Delete</button>
-                      </div>
-                    `;
-                  },
-                },
-              ]}
-              options={{
-                layout: 'fitData',
-                pagination: true,
-                paginationSize: 10,
-                height: '500px',
-              }}
-              events={{
-                cellClick: (e: any, cell: any) => {
-                  const target = e.target as HTMLElement;
-                  const editBtn = target.closest('.edit-btn');
-                  const deleteBtn = target.closest('.delete-btn');
-
-                  if (editBtn) {
-                    const rowData = cell.getRow().getData();
-                    onSelectTimesheet(rowData._original);
-                  } else if (deleteBtn) {
-                    const id = deleteBtn.getAttribute('data-id');
-                    if (id && confirm('Are you sure you want to delete this timesheet?')) {
-                      onDelete(parseInt(id));
-                    }
-                  }
-                },
-              }}
-            />
-          )}
+          <MantineReactTable table={table} />
         </div>
       </div>
     </div>
@@ -628,7 +613,7 @@ const TimesheetEdit: React.FC<{
 const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
   theme = 'brand-a'
 }) => {
-  const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
+  const [timesheets, setTimesheets] = useState<TimesheetSummary[]>([]);
   const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [workforceCodes, setWorkforceCodes] = useState<WorkforceCode[]>([]);
@@ -651,7 +636,7 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
     try {
       setIsLoading(true);
       setError(null);
-      const response = await timesheetService.getAllTimesheets();
+      const response = await timesheetService.getTimesheetSummaries();
       if (response.success && response.data) {
         setTimesheets(response.data);
       } else {
@@ -708,9 +693,23 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
     }
   };
 
-  const handleSelectTimesheet = (timesheet: Timesheet) => {
-    setSelectedTimesheet(timesheet);
-    setCurrentPage('edit');
+  const handleSelectTimesheet = async (summary: TimesheetSummary) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await timesheetService.getTimesheetById(summary.timesheetId);
+      if (response.success && response.data) {
+        setSelectedTimesheet(response.data);
+        setCurrentPage('edit');
+      } else {
+        setError(response.message || 'Failed to load timesheet details');
+      }
+    } catch (err) {
+      console.error('Error fetching timesheet details:', err);
+      setError('Failed to load timesheet details');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAddNew = () => {
@@ -729,9 +728,10 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
         });
 
         if (response.success && response.data) {
-          setTimesheets(prev => prev.map(ts =>
-            ts.timesheetId === selectedTimesheet.timesheetId ? response.data! : ts
-          ));
+          // setTimesheets(prev => prev.map(ts =>
+          //   ts.timesheetId === selectedTimesheet.timesheetId ? response.data! : ts
+          // ));
+          fetchTimesheets(); // Refresh the list to show the updated timesheet
         } else {
           throw new Error(response.message || 'Update failed');
         }
@@ -745,7 +745,8 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
         });
 
         if (response.success && response.data) {
-          setTimesheets(prev => [...prev, response.data!]);
+          //setTimesheets(prev => [...prev, response.data!]);
+          fetchTimesheets(); // Refresh the list to show the new timesheet
         } else {
           throw new Error(response.message || 'Create failed');
         }
@@ -779,15 +780,18 @@ const TimesheetManagement: React.FC<TimesheetManagementProps> = ({
   };
 
   return currentPage === 'list' ? (
-    <TimesheetList
-      timesheets={timesheets}
-      isLoading={isLoading}
-      error={error}
-      onSelectTimesheet={handleSelectTimesheet}
-      onAddNew={handleAddNew}
-      onDelete={handleDelete}
-      theme={theme}
-    />
+    <MantineProvider>
+      <TimesheetList
+        timesheets={timesheets}
+        isLoading={isLoading}
+        error={error}
+        onSelectTimesheet={handleSelectTimesheet}
+        onAddNew={handleAddNew}
+        onRefresh={fetchTimesheets}
+        onDelete={handleDelete}
+        theme={theme}
+      />
+    </MantineProvider>
   ) : (
     <TimesheetEdit
       timesheet={selectedTimesheet}

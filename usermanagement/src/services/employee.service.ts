@@ -11,7 +11,7 @@ import {
 } from './common.services.ts';
 
 import {
-  Employee, EmployeesRequest,
+  Employee, EmployeesRequest, CreateEmployeeWithUserRequest,
   Address, AddressesRequest,
   Department, DepartmentsRequest,
   EmailAddress, EmailAddressesRequest,
@@ -74,6 +74,10 @@ export class EmployeeService extends CrudService<Employee, EmployeesRequest> {
 
   async createEmployee(data: EmployeesRequest): Promise<ApiResponse<Employee>> {
     return this.client.post<Employee>(`/${this.resourcePath}/create`, data);
+  }
+
+  async createEmployeeWithUser(data: CreateEmployeeWithUserRequest): Promise<ApiResponse<Employee>> {
+    return this.client.post<Employee>(`/${this.resourcePath}/create-with-user`, data);
   }
 
   async getAllEmployees(): Promise<ApiResponse<Employee[]>> {

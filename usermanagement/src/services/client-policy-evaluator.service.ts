@@ -1,7 +1,7 @@
 /**
  * Client-Side Policy Evaluation Service
  * Evaluates ABAC policies on the frontend for immediate UI decisions
- * Refactored to use AbacApiService with improved error handling
+ * Copied from administrationmanagement (most up-to-date version)
  */
 
 import { AbacApiService, UUID, Policy, PolicyRule } from './abac-api.service';
@@ -61,7 +61,7 @@ export interface PolicyCache {
   rules: Map<UUID, PolicyRule[]>;
   actionTargets: Map<UUID, UUID[]>;
   resourceTargets: Map<UUID, UUID[]>;
-  resourceTypeTargets: Map<UUID, string[]>;
+  resourceTypeTargets: Map<UUID, number[]>;
   lastUpdated: Date;
 }
 
@@ -91,9 +91,6 @@ export class ClientPolicyEvaluator {
   // Main Evaluation Method
   // =========================================================================
 
-  /**
-   * Main evaluation method - evaluates access based on current user and context
-   */
   async evaluate(
     userId: UUID,
     resourceId: UUID,
@@ -104,7 +101,6 @@ export class ClientPolicyEvaluator {
     const evaluationDetails: string[] = [];
 
     try {
-      // Build evaluation context
       const context = await this.buildEvaluationContext(
         userId,
         resourceId,
@@ -115,17 +111,15 @@ export class ClientPolicyEvaluator {
       evaluationDetails.push(`Evaluating access for user ${userId}`);
       evaluationDetails.push(`Resource: ${resourceId}, Action: ${actionId}`);
 
-      // Get policies (from cache or server)
       const policies = await this.getPolicies();
       evaluationDetails.push(`Found ${policies.length} active policies`);
 
-      // Evaluate policies in priority order
       for (const policy of policies) {
         const result = await this.evaluatePolicy(policy, context, evaluationDetails);
 
         if (result.applicable) {
           if (result.match) {
-            const decision = policy.policyType === 'permit' ? 'PERMIT' : 'DENY';
+            const decision = policy.policyTypeName === 'permit' ? 'PERMIT' : 'DENY';
             const endTime = performance.now();
 
             return {
@@ -145,7 +139,6 @@ export class ClientPolicyEvaluator {
         }
       }
 
-      // No policy matched - default deny
       const endTime = performance.now();
       return {
         decision: 'DENY',
@@ -155,7 +148,6 @@ export class ClientPolicyEvaluator {
         evaluationDetails,
       };
     } catch (error) {
-      // Fallback to server evaluation if enabled
       if (this.options.fallbackToServer) {
         console.warn('Client evaluation failed, falling back to server', error);
         return this.fallbackToServerEvaluation(userId, resourceId, actionId, environmentAttributes);
@@ -169,33 +161,27 @@ export class ClientPolicyEvaluator {
   // Policy Evaluation
   // =========================================================================
 
-  /**
-   * Evaluate a single policy
-   */
   private async evaluatePolicy(
     policy: Policy,
     context: EvaluationContext,
     evaluationDetails: string[]
   ): Promise<{ applicable: boolean; match: boolean; reason: string }> {
-    // Check if policy targets this action
     const actionTargets = this.cache?.actionTargets.get(policy.policyId) || [];
     if (actionTargets.length > 0 && !actionTargets.includes(context.actionId)) {
       return { applicable: false, match: false, reason: 'Action not targeted by policy' };
     }
 
-    // Check if policy targets this resource
     const resourceTargets = this.cache?.resourceTargets.get(policy.policyId) || [];
     const resourceTypeTargets = this.cache?.resourceTypeTargets.get(policy.policyId) || [];
 
     if (resourceTargets.length > 0 || resourceTypeTargets.length > 0) {
       const resourceMatches = resourceTargets.includes(context.resourceId);
-      
+
       if (!resourceMatches && resourceTargets.length > 0) {
         return { applicable: false, match: false, reason: 'Resource not targeted by policy' };
       }
     }
 
-    // Get policy rules
     const rules = this.cache?.rules.get(policy.policyId) || [];
 
     if (rules.length === 0) {
@@ -203,7 +189,6 @@ export class ClientPolicyEvaluator {
       return { applicable: true, match: true, reason: 'Policy has no conditions - applies to all' };
     }
 
-    // Evaluate rules
     const ruleResult = this.evaluateRules(
       rules,
       context.subjectAttributes,
@@ -218,9 +203,6 @@ export class ClientPolicyEvaluator {
     return { applicable: true, ...ruleResult };
   }
 
-  /**
-   * Evaluate all rules for a policy
-   */
   private evaluateRules(
     rules: PolicyRule[],
     subjectAttributes: AttributeMap,
@@ -232,7 +214,6 @@ export class ClientPolicyEvaluator {
     const failedConditions: string[] = [];
 
     for (const rule of rules) {
-      // Get the actual attribute value based on category
       const actualValue = this.getAttributeValue(
         rule.attributeName || '',
         subjectAttributes,
@@ -250,7 +231,6 @@ export class ClientPolicyEvaluator {
         continue;
       }
 
-      // Evaluate this rule
       const ruleResult = this.evaluateRule(rule.operator, actualValue, rule.comparisonValue);
 
       if (!ruleResult) {
@@ -259,7 +239,6 @@ export class ClientPolicyEvaluator {
         );
       }
 
-      // Apply logical operator
       if (currentLogicalOp === 'OR') {
         overallResult = overallResult || ruleResult;
       } else {
@@ -279,60 +258,42 @@ export class ClientPolicyEvaluator {
     }
   }
 
-  /**
-   * Evaluate a single rule based on operator
-   */
   private evaluateRule(operator: RuleOperator, actualValue: string, comparisonValue: string): boolean {
     const evaluators: RuleEvaluatorMap = {
       equals: (actual, comparison) =>
         actual.toLowerCase() === comparison.toLowerCase(),
-
       not_equals: (actual, comparison) =>
         actual.toLowerCase() !== comparison.toLowerCase(),
-
       contains: (actual, comparison) =>
         actual.toLowerCase().includes(comparison.toLowerCase()),
-
       not_contains: (actual, comparison) =>
         !actual.toLowerCase().includes(comparison.toLowerCase()),
-
       in: (actual, comparison) => {
         const values = comparison.split(',').map((v) => v.trim().toLowerCase());
         return values.includes(actual.toLowerCase());
       },
-
       not_in: (actual, comparison) => {
         const values = comparison.split(',').map((v) => v.trim().toLowerCase());
         return !values.includes(actual.toLowerCase());
       },
-
       greater_than: (actual, comparison) => {
-        const actualNum = parseFloat(actual);
-        const comparisonNum = parseFloat(comparison);
-        return !isNaN(actualNum) && !isNaN(comparisonNum) && actualNum > comparisonNum;
+        const a = parseFloat(actual), c = parseFloat(comparison);
+        return !isNaN(a) && !isNaN(c) && a > c;
       },
-
       less_than: (actual, comparison) => {
-        const actualNum = parseFloat(actual);
-        const comparisonNum = parseFloat(comparison);
-        return !isNaN(actualNum) && !isNaN(comparisonNum) && actualNum < comparisonNum;
+        const a = parseFloat(actual), c = parseFloat(comparison);
+        return !isNaN(a) && !isNaN(c) && a < c;
       },
-
       greater_than_or_equal: (actual, comparison) => {
-        const actualNum = parseFloat(actual);
-        const comparisonNum = parseFloat(comparison);
-        return !isNaN(actualNum) && !isNaN(comparisonNum) && actualNum >= comparisonNum;
+        const a = parseFloat(actual), c = parseFloat(comparison);
+        return !isNaN(a) && !isNaN(c) && a >= c;
       },
-
       less_than_or_equal: (actual, comparison) => {
-        const actualNum = parseFloat(actual);
-        const comparisonNum = parseFloat(comparison);
-        return !isNaN(actualNum) && !isNaN(comparisonNum) && actualNum <= comparisonNum;
+        const a = parseFloat(actual), c = parseFloat(comparison);
+        return !isNaN(a) && !isNaN(c) && a <= c;
       },
-
       starts_with: (actual, comparison) =>
         actual.toLowerCase().startsWith(comparison.toLowerCase()),
-
       ends_with: (actual, comparison) =>
         actual.toLowerCase().endsWith(comparison.toLowerCase()),
     };
@@ -346,30 +307,15 @@ export class ClientPolicyEvaluator {
     return evaluator(actualValue, comparisonValue);
   }
 
-  /**
-   * Get attribute value from appropriate map
-   */
   private getAttributeValue(
     attributeName: string,
     subjectAttributes: AttributeMap,
     resourceAttributes: AttributeMap,
     environmentAttributes: AttributeMap
   ): string | undefined {
-    // Try subject attributes first
-    if (subjectAttributes[attributeName] !== undefined) {
-      return subjectAttributes[attributeName];
-    }
-
-    // Try resource attributes
-    if (resourceAttributes[attributeName] !== undefined) {
-      return resourceAttributes[attributeName];
-    }
-
-    // Try environment attributes
-    if (environmentAttributes[attributeName] !== undefined) {
-      return environmentAttributes[attributeName];
-    }
-
+    if (subjectAttributes[attributeName] !== undefined) return subjectAttributes[attributeName];
+    if (resourceAttributes[attributeName] !== undefined) return resourceAttributes[attributeName];
+    if (environmentAttributes[attributeName] !== undefined) return environmentAttributes[attributeName];
     return undefined;
   }
 
@@ -377,16 +323,12 @@ export class ClientPolicyEvaluator {
   // Context Building
   // =========================================================================
 
-  /**
-   * Build evaluation context with all necessary attributes
-   */
   private async buildEvaluationContext(
     userId: UUID,
     resourceId: UUID,
     actionId: UUID,
     environmentAttributes?: AttributeMap
   ): Promise<EvaluationContext> {
-    // Fetch subject attributes
     const subjectAttrs = await this.apiService.getActiveSubjectAttributesByUserId(userId);
     const subjectAttributes: AttributeMap = {};
     subjectAttrs.forEach((attr) => {
@@ -395,7 +337,6 @@ export class ClientPolicyEvaluator {
       }
     });
 
-    // Fetch resource attributes
     const resourceAttrs = await this.apiService.getActiveResourceAttributesByResourceId(resourceId);
     const resourceAttributes: AttributeMap = {};
     resourceAttrs.forEach((attr) => {
@@ -418,9 +359,6 @@ export class ClientPolicyEvaluator {
   // Cache Management
   // =========================================================================
 
-  /**
-   * Get policies (from cache or server)
-   */
   private async getPolicies(): Promise<Policy[]> {
     const useCache = this.options.useCache !== false;
 
@@ -432,28 +370,19 @@ export class ClientPolicyEvaluator {
     return this.cache?.policies || [];
   }
 
-  /**
-   * Check if cache is expired
-   */
   private isCacheExpired(): boolean {
     if (!this.cache) return true;
-
-    const now = new Date();
-    const elapsed = now.getTime() - this.cache.lastUpdated.getTime();
+    const elapsed = new Date().getTime() - this.cache.lastUpdated.getTime();
     return elapsed > this.cacheTTL;
   }
 
-  /**
-   * Refresh policy cache from server
-   */
   async refreshCache(): Promise<void> {
-    // Prevent concurrent refresh operations
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
 
     this.refreshPromise = this.performCacheRefresh();
-    
+
     try {
       await this.refreshPromise;
     } finally {
@@ -461,24 +390,16 @@ export class ClientPolicyEvaluator {
     }
   }
 
-  /**
-   * Perform actual cache refresh
-   */
   private async performCacheRefresh(): Promise<void> {
     try {
-      // Fetch all active policies
       const policies = await this.apiService.getActivePolicies();
-
-      // Sort by priority (descending)
       policies.sort((a, b) => b.priority - a.priority);
 
-      // Build cache maps
       const rulesMap = new Map<UUID, PolicyRule[]>();
       const actionTargetsMap = new Map<UUID, UUID[]>();
       const resourceTargetsMap = new Map<UUID, UUID[]>();
-      const resourceTypeTargetsMap = new Map<UUID, string[]>();
+      const resourceTypeTargetsMap = new Map<UUID, number[]>();
 
-      // Fetch rules for each policy
       const rulePromises = policies.map(async (policy) => {
         const rules = await this.apiService.getRulesByPolicyId(policy.policyId);
         rules.sort((a, b) => a.ruleOrder - b.ruleOrder);
@@ -508,63 +429,37 @@ export class ClientPolicyEvaluator {
     }
   }
 
-  /**
-   * Manually set policy targets (for caching action and resource targets)
-   */
   setPolicyTargets(
     policyId: UUID,
     actionIds: UUID[],
     resourceIds: UUID[],
-    resourceTypes: string[]
+    resourceTypeIds: number[]
   ): void {
     if (!this.cache) {
       throw new Error('Cache not initialized');
     }
-
     this.cache.actionTargets.set(policyId, actionIds);
     this.cache.resourceTargets.set(policyId, resourceIds);
-    this.cache.resourceTypeTargets.set(policyId, resourceTypes);
+    this.cache.resourceTypeTargets.set(policyId, resourceTypeIds);
   }
 
-  /**
-   * Clear the cache
-   */
   clearCache(): void {
     this.cache = null;
   }
 
-  /**
-   * Get cache statistics
-   */
-  getCacheStats(): {
-    cached: boolean;
-    policies: number;
-    rules: number;
-    age: number;
-  } | null {
+  getCacheStats(): { cached: boolean; policies: number; rules: number; age: number } | null {
     if (!this.cache) return null;
-
     const age = new Date().getTime() - this.cache.lastUpdated.getTime();
     const totalRules = Array.from(this.cache.rules.values()).reduce(
-      (sum, rules) => sum + rules.length,
-      0
+      (sum, rules) => sum + rules.length, 0
     );
-
-    return {
-      cached: true,
-      policies: this.cache.policies.length,
-      rules: totalRules,
-      age,
-    };
+    return { cached: true, policies: this.cache.policies.length, rules: totalRules, age };
   }
 
   // =========================================================================
   // Server Fallback
   // =========================================================================
 
-  /**
-   * Fallback to server evaluation
-   */
   private async fallbackToServerEvaluation(
     userId: UUID,
     resourceId: UUID,
@@ -587,7 +482,7 @@ export class ClientPolicyEvaluator {
       reason: response.reason,
       appliedPolicyId: response.appliedPolicyId,
       appliedPolicyName: response.appliedPolicyName,
-      evaluatedPolicies: 0, // Unknown from server response
+      evaluatedPolicies: 0,
       evaluationTimeMs: endTime - startTime,
       evaluationDetails: response.evaluationDetails,
     };

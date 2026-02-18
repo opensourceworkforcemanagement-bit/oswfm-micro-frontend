@@ -86,7 +86,7 @@ export interface UpdateActionRequest {
 }
 
 export interface AttributeDefinition {
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName: string;
   attributeCategoryId: number;
   attributeCategoryName: string;
@@ -112,7 +112,7 @@ export interface UpdateAttributeDefinitionRequest {
 export interface SubjectAttribute {
   subjectAttributeId: UUID;
   userId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName?: string;
   attributeValue: string;
   isActive: boolean;
@@ -124,7 +124,7 @@ export interface SubjectAttribute {
 
 export interface CreateSubjectAttributeRequest {
   userId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeValue: string;
   effectiveFrom?: string;
   effectiveTo?: string;
@@ -140,7 +140,7 @@ export interface UpdateSubjectAttributeRequest {
 export interface ResourceAttribute {
   resourceAttributeId: UUID;
   resourceId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName?: string;
   attributeValue: string;
   isActive: boolean;
@@ -152,7 +152,7 @@ export interface ResourceAttribute {
 
 export interface CreateResourceAttributeRequest {
   resourceId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeValue: string;
   effectiveFrom?: string;
   effectiveTo?: string;
@@ -194,7 +194,7 @@ export interface UpdatePolicyRequest {
 export interface PolicyRule {
   ruleId: UUID;
   policyId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName?: string;
   operator: RuleOperator;
   comparisonValue: string;
@@ -220,7 +220,7 @@ export type RuleOperator =
 
 export interface CreatePolicyRuleRequest {
   policyId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   operator: RuleOperator;
   comparisonValue: string;
   logicalOperator?: 'AND' | 'OR';
@@ -436,7 +436,12 @@ export class AbacApiService {
 
   async getActiveUsers(): Promise<User[]> {
     const response = await this.users.getActiveUsers();
-    return response.data || [];
+    const data = response.data as any;
+    // Backend wraps response in CustomResponse { response: [...] }
+    if (data && Array.isArray(data.response)) {
+      return data.response;
+    }
+    return Array.isArray(data) ? data : [];
   }
 
   async createUser(request: CreateUserRequest): Promise<User> {

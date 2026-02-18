@@ -27,7 +27,184 @@ import {
   UserService,
 } from '../services/user.service.ts';
 import { createHttpClient, ApiResponse } from '../services/common.services.ts';
+import { AbacApiService, createAbacApiService, Resource, Operation } from '../services/abac-api.service.ts';
+import { ClientPolicyEvaluator, createClientPolicyEvaluator, ClientEvaluationResult } from '../services/client-policy-evaluator.service.ts';
 import "tailwindcss";
+
+// ============================================================================
+// ABAC Resource URI Map
+// ============================================================================
+// Maps component keys to their resource_uri values from V6 migration.
+// These URIs are used to look up resource IDs from the backend.
+// ============================================================================
+
+const RESOURCE_URIS: Record<string, string> = {
+  // Page
+  page: '/usermanagement/users',
+
+  // Tabs
+  'tab.user': '/usermanagement/users/tab/user',
+  'tab.roles': '/usermanagement/users/tab/roles',
+  'tab.settings': '/usermanagement/users/tab/settings',
+  'tab.groups': '/usermanagement/users/tab/groups',
+
+  // Fields - User Tab
+  'field.userName': '/usermanagement/users/field/userName',
+  'field.firstName': '/usermanagement/users/field/firstName',
+  'field.middleName': '/usermanagement/users/field/middleName',
+  'field.lastName': '/usermanagement/users/field/lastName',
+  'field.email': '/usermanagement/users/field/email',
+  'field.password': '/usermanagement/users/field/password',
+  'field.userStatus': '/usermanagement/users/field/userStatus',
+  'field.organization': '/usermanagement/users/field/organization',
+
+  // Fields - Roles Tab
+  'field.roleCheckbox': '/usermanagement/users/field/roleCheckbox',
+
+  // Fields - Settings Tab
+  'field.hiringDate': '/usermanagement/users/field/hiringDate',
+  'field.lastDate': '/usermanagement/users/field/lastDate',
+  'field.workerType': '/usermanagement/users/field/workerType',
+
+  // Buttons
+  'button.addUser': '/usermanagement/users/button/addUser',
+  'button.refresh': '/usermanagement/users/button/refresh',
+  'button.edit': '/usermanagement/users/button/edit',
+  'button.delete': '/usermanagement/users/button/delete',
+  'button.save': '/usermanagement/users/button/save',
+  'button.cancel': '/usermanagement/users/button/cancel',
+  'button.addToGroup': '/usermanagement/users/button/addToGroup',
+  'button.removeFromGroup': '/usermanagement/users/button/removeFromGroup',
+};
+
+// ============================================================================
+// ABAC Permission Types
+// ============================================================================
+
+interface AbacPermissions {
+  [resourceKey: string]: {
+    read: boolean;
+    create: boolean;
+    update: boolean;
+    delete: boolean;
+  };
+}
+
+// ============================================================================
+// ABAC Hook: useAbacPermissions
+// ============================================================================
+
+function useAbacPermissions(userId: number | undefined, abacApiBaseUrl: string) {
+  const [permissions, setPermissions] = useState<AbacPermissions>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+
+    const loadPermissions = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const httpClient = createHttpClient({ baseURL: abacApiBaseUrl, timeout: 30000 });
+        const abacApi = createAbacApiService(httpClient);
+        const evaluator = createClientPolicyEvaluator(abacApi, {
+          useCache: true,
+          cacheTTL: 5 * 60 * 1000,
+          fallbackToServer: true,
+          debug: false,
+        });
+
+        // Fetch all resources and operations
+        const [resources, operations] = await Promise.all([
+          abacApi.getActiveResources(),
+          abacApi.getAllOperations(),
+        ]);
+
+        // Build lookup maps
+        const resourceByUri = new Map<string, Resource>();
+        for (const r of resources) {
+          if (r.resourceId) {
+            // Match by resource_uri
+            resourceByUri.set(r.resourceName, r);
+          }
+        }
+
+        const operationByName = new Map<string, Operation>();
+        for (const o of operations) {
+          operationByName.set(o.operationName, o);
+        }
+
+        const operationNames = ['read', 'create', 'update', 'delete'];
+        const newPermissions: AbacPermissions = {};
+
+        // Evaluate permissions for each resource URI
+        for (const [key, uri] of Object.entries(RESOURCE_URIS)) {
+          // Find matching resource by URI
+          const resource = resources.find(r => r.resourceName &&
+            // Match by resource_uri (may not be in the response, so also try resource name)
+            (r as any).resourceUri === uri || (r as any).resource_uri === uri
+          );
+
+          if (!resource) {
+            // Default: deny all if resource not found
+            newPermissions[key] = { read: false, create: false, update: false, delete: false };
+            continue;
+          }
+
+          const perms: any = {};
+          for (const opName of operationNames) {
+            const op = operationByName.get(opName);
+            if (!op) {
+              perms[opName] = false;
+              continue;
+            }
+
+            try {
+              const result: ClientEvaluationResult = await evaluator.evaluate(
+                String(userId),
+                String(resource.resourceId),
+                String(op.operationId)
+              );
+              perms[opName] = result.decision === 'PERMIT';
+            } catch {
+              perms[opName] = false;
+            }
+          }
+
+          newPermissions[key] = perms;
+        }
+
+        setPermissions(newPermissions);
+      } catch (err) {
+        console.error('ABAC permission loading failed:', err);
+        setError('Failed to load access control permissions');
+        // Default to deny-all on error
+        const denyAll: AbacPermissions = {};
+        for (const key of Object.keys(RESOURCE_URIS)) {
+          denyAll[key] = { read: false, create: false, update: false, delete: false };
+        }
+        setPermissions(denyAll);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPermissions();
+  }, [userId, abacApiBaseUrl]);
+
+  // Helper functions
+  const canRead = useCallback((key: string) => permissions[key]?.read ?? false, [permissions]);
+  const canCreate = useCallback((key: string) => permissions[key]?.create ?? false, [permissions]);
+  const canUpdate = useCallback((key: string) => permissions[key]?.update ?? false, [permissions]);
+  const canDelete = useCallback((key: string) => permissions[key]?.delete ?? false, [permissions]);
+
+  return { permissions, isLoading, error, canRead, canCreate, canUpdate, canDelete };
+}
 
 // ============================================================================
 // Types
@@ -40,11 +217,6 @@ interface FieldConfig {
   label: string;
   hint: string;
   required: boolean;
-}
-
-interface ActionConfig {
-  enabled: boolean;
-  visible: boolean;
 }
 
 // ============================================================================
@@ -88,21 +260,6 @@ class UserManagementConfigManager {
 
   static getFieldConfig(key: string): FieldConfig | undefined {
     return this.getFields()[key];
-  }
-
-  static getActions(): Record<string, ActionConfig> {
-    return {
-      add: { enabled: true, visible: true },
-      edit: { enabled: true, visible: true },
-      delete: { enabled: true, visible: true },
-      save: { enabled: true, visible: true },
-      cancel: { enabled: true, visible: true },
-      editButton: { enabled: true, visible: true },
-    };
-  }
-
-  static getActionConfig(key: string): ActionConfig | undefined {
-    return this.getActions()[key];
   }
 
   static getPaginationConfig() {
@@ -181,14 +338,18 @@ const StatusBadge = ({ status }: { status: number }) => {
   );
 };
 
-const InputField = ({ fieldKey, value, onChange, type = 'text' }: {
+const InputField = ({ fieldKey, value, onChange, type = 'text', abacReadonly = false }: {
   fieldKey: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  abacReadonly?: boolean;
 }) => {
   const fieldConfig = UserManagementConfigManager.getFieldConfig(fieldKey);
   if (!fieldConfig?.visible) return null;
+
+  const isReadonly = fieldConfig.readonly || abacReadonly;
+  const isEnabled = fieldConfig.enabled && !abacReadonly;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
@@ -196,14 +357,15 @@ const InputField = ({ fieldKey, value, onChange, type = 'text' }: {
         {fieldConfig.label}{fieldConfig.required && <span style={{ color: 'var(--color-danger)' }}> *</span>}
       </label>
       <input id={`field-${fieldKey}`} type={type} value={value} onChange={e => onChange(e.target.value)}
-        disabled={!fieldConfig.enabled || fieldConfig.readonly}
+        disabled={!isEnabled}
+        readOnly={isReadonly}
         style={{
           padding: 'var(--spacing-sm) var(--spacing-md)',
-          backgroundColor: fieldConfig.readonly ? 'var(--color-surface)' : 'var(--color-background)',
+          backgroundColor: isReadonly ? 'var(--color-surface)' : 'var(--color-background)',
           border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
           fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', outline: 'none',
-          opacity: fieldConfig.enabled ? 1 : 0.6,
-          cursor: fieldConfig.enabled && !fieldConfig.readonly ? 'text' : 'not-allowed',
+          opacity: isEnabled ? 1 : 0.6,
+          cursor: isEnabled && !isReadonly ? 'text' : 'not-allowed',
         }} />
       {fieldConfig.hint && <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{fieldConfig.hint}</span>}
     </div>
@@ -258,10 +420,31 @@ const SelectFieldForm = ({ label, value, onChange, options, required = false, di
 );
 
 // ============================================================================
-// User Directory (Table View)
+// ABAC Permission Loading Indicator
 // ============================================================================
 
-const UserDirectory = ({ users, isLoading, error, onSelectUser, onAddNew, onRefresh, onDeleteUser }: {
+const AbacLoadingOverlay = () => (
+  <div style={{
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.8)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+  }}>
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: '16px', color: '#64748b', marginBottom: '8px' }}>
+        Loading access permissions...
+      </div>
+      <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+        Evaluating ABAC policies
+      </div>
+    </div>
+  </div>
+);
+
+// ============================================================================
+// User Directory (Table View) - ABAC Controlled
+// ============================================================================
+
+const UserDirectory = ({ users, isLoading, error, onSelectUser, onAddNew, onRefresh, onDeleteUser, canRead, canCreate, canUpdate, canDelete }: {
   users: User[];
   isLoading: boolean;
   error: string | null;
@@ -269,44 +452,24 @@ const UserDirectory = ({ users, isLoading, error, onSelectUser, onAddNew, onRefr
   onAddNew: () => void;
   onRefresh: () => void;
   onDeleteUser: (userId: number) => void;
+  canRead: (key: string) => boolean;
+  canCreate: (key: string) => boolean;
+  canUpdate: (key: string) => boolean;
+  canDelete: (key: string) => boolean;
 }) => {
-  const addAction = UserManagementConfigManager.getActionConfig('add');
-  const editAction = UserManagementConfigManager.getActionConfig('edit');
-  const editButtonAction = UserManagementConfigManager.getActionConfig('editButton');
-  const deleteAction = UserManagementConfigManager.getActionConfig('delete');
+  const showAddButton = canCreate('button.addUser');
+  const showEditButton = canUpdate('button.edit');
+  const showDeleteButton = canDelete('button.delete');
 
   const columns = useMemo<MRT_ColumnDef<User>[]>(() => {
     const cols: MRT_ColumnDef<User>[] = [
+      { accessorKey: 'userId', header: 'ID', size: 80, enableColumnFilter: false },
+      { accessorKey: 'userName', header: 'Username', size: 150 },
+      { accessorKey: 'firstName', header: 'First Name', size: 150 },
+      { accessorKey: 'lastName', header: 'Last Name', size: 150 },
+      { accessorKey: 'email', header: 'Email', size: 200 },
       {
-        accessorKey: 'userId',
-        header: 'ID',
-        size: 80,
-        enableColumnFilter: false,
-      },
-      {
-        accessorKey: 'userName',
-        header: 'Username',
-        size: 150,
-      },
-      {
-        accessorKey: 'firstName',
-        header: 'First Name',
-        size: 150,
-      },
-      {
-        accessorKey: 'lastName',
-        header: 'Last Name',
-        size: 150,
-      },
-      {
-        accessorKey: 'email',
-        header: 'Email',
-        size: 200,
-      },
-      {
-        accessorKey: 'userStatus',
-        header: 'Status',
-        size: 120,
+        accessorKey: 'userStatus', header: 'Status', size: 120,
         Cell: ({ cell }) => <StatusBadge status={cell.getValue<number>()} />,
         filterVariant: 'select',
         mantineFilterSelectProps: {
@@ -318,34 +481,28 @@ const UserDirectory = ({ users, isLoading, error, onSelectUser, onAddNew, onRefr
       },
     ];
 
-    if (editButtonAction?.visible && editAction?.enabled) {
+    if (showEditButton || showDeleteButton) {
       cols.push({
-        id: 'actions',
-        header: 'Actions',
-        size: 150,
-        enableColumnFilter: false,
-        enableSorting: false,
+        id: 'actions', header: 'Actions', size: 150,
+        enableColumnFilter: false, enableSorting: false,
         Cell: ({ row }) => (
           <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectUser(row.original);
-              }}
-              disabled={!editButtonAction.enabled}
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                padding: 'var(--spacing-xs) var(--spacing-sm)', backgroundColor: 'var(--color-primary-light)',
-                color: 'var(--color-primary)', border: '1px solid var(--color-primary)',
-                borderRadius: 'var(--radius-sm)', cursor: editButtonAction.enabled ? 'pointer' : 'not-allowed',
-                fontSize: 'var(--font-size-xs)', fontWeight: 500, gap: 'var(--spacing-xs)',
-                opacity: editButtonAction.enabled ? 1 : 0.6,
-                transition: 'var(--transition-fast)',
-              }}
-            >
-              <IconEdit size={14} /> Edit
-            </button>
-            {deleteAction?.visible && (
+            {showEditButton && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onSelectUser(row.original); }}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  padding: 'var(--spacing-xs) var(--spacing-sm)', backgroundColor: 'var(--color-primary-light)',
+                  color: 'var(--color-primary)', border: '1px solid var(--color-primary)',
+                  borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                  fontSize: 'var(--font-size-xs)', fontWeight: 500, gap: 'var(--spacing-xs)',
+                  transition: 'var(--transition-fast)',
+                }}
+              >
+                <IconEdit size={14} /> Edit
+              </button>
+            )}
+            {showDeleteButton && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -354,14 +511,12 @@ const UserDirectory = ({ users, isLoading, error, onSelectUser, onAddNew, onRefr
                     onDeleteUser(row.original.userId);
                   }
                 }}
-                disabled={!deleteAction.enabled}
                 style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   padding: 'var(--spacing-xs) var(--spacing-sm)', backgroundColor: 'var(--color-danger-bg)',
                   color: 'var(--color-danger)', border: '1px solid var(--color-danger)',
-                  borderRadius: 'var(--radius-sm)', cursor: deleteAction.enabled ? 'pointer' : 'not-allowed',
+                  borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                   fontSize: 'var(--font-size-xs)', fontWeight: 500, gap: 'var(--spacing-xs)',
-                  opacity: deleteAction.enabled ? 1 : 0.6,
                   transition: 'var(--transition-fast)',
                 }}
               >
@@ -374,7 +529,7 @@ const UserDirectory = ({ users, isLoading, error, onSelectUser, onAddNew, onRefr
     }
 
     return cols;
-  }, [editAction, editButtonAction, deleteAction, onSelectUser, onDeleteUser]);
+  }, [showEditButton, showDeleteButton, onSelectUser, onDeleteUser]);
 
   const table = useMantineReactTable({
     columns,
@@ -413,30 +568,23 @@ const UserDirectory = ({ users, isLoading, error, onSelectUser, onAddNew, onRefr
       withTableBorder: true,
       withColumnBorders: true,
     },
-    mantineTableHeadCellProps: {
-      align: 'center',
-    },
-    mantineTableBodyCellProps: {
-      align: 'center',
-    },
+    mantineTableHeadCellProps: { align: 'center' },
+    mantineTableBodyCellProps: { align: 'center' },
     mantineTableBodyRowProps: ({ row }) => ({
-      onClick: editAction?.enabled ? () => onSelectUser(row.original) : undefined,
-      style: { cursor: editAction?.enabled ? 'pointer' : 'default' },
+      onClick: showEditButton ? () => onSelectUser(row.original) : undefined,
+      style: { cursor: showEditButton ? 'pointer' : 'default' },
     }),
     renderTopToolbarCustomActions: () => (
       <Box style={{ display: 'flex', gap: '16px', padding: '8px' }}>
-        {addAction?.visible && (
+        {showAddButton && (
           <button
             onClick={onAddNew}
-            disabled={!addAction.enabled}
             style={{
               display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)',
               padding: 'var(--spacing-sm) var(--spacing-md)',
               backgroundColor: 'var(--color-primary)',
               color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
-              cursor: addAction.enabled ? 'pointer' : 'not-allowed',
-              fontSize: 'var(--font-size-sm)', fontWeight: 500,
-              opacity: addAction.enabled ? 1 : 0.6,
+              cursor: 'pointer', fontSize: 'var(--font-size-sm)', fontWeight: 500,
             }}
           >
             <IconPlus size={16} /> Add User
@@ -484,21 +632,34 @@ const tabStyle: React.CSSProperties = {
   borderBottom: '2px solid transparent', color: 'var(--color-tab-inactive)',
 };
 
+const disabledTabStyle: React.CSSProperties = {
+  ...tabStyle,
+  opacity: 0.4,
+  cursor: 'not-allowed',
+};
+
 const gridStyle: React.CSSProperties = {
   display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-lg)', maxWidth: '600px',
 };
 
 // ============================================================================
-// User Form (Add/Edit View)
+// User Form (Add/Edit View) - ABAC Controlled
 // ============================================================================
 
-const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
+const UserForm = ({ user, userService, onSave, onCancel, isNew, canRead, canCreate, canUpdate, canDelete }: {
   user: User | null;
   userService: UserService;
   onSave: (userData: Partial<User>, password?: string) => void;
   onCancel: () => void;
   isNew: boolean;
+  canRead: (key: string) => boolean;
+  canCreate: (key: string) => boolean;
+  canUpdate: (key: string) => boolean;
+  canDelete: (key: string) => boolean;
 }) => {
+  // Determine if fields should be readonly based on ABAC permissions
+  const fieldsReadonly = !canUpdate('page') && !canCreate('page');
+
   // User tab state
   const [formData, setFormData] = useState<Partial<User>>(() => user || {
     userName: '', firstName: '', middleName: '', lastName: '', email: '', userStatus: 1,
@@ -525,10 +686,16 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
 
   const [saving, setSaving] = useState(false);
 
-  const saveAction = UserManagementConfigManager.getActionConfig('save');
-  const cancelAction = UserManagementConfigManager.getActionConfig('cancel');
+  const showSaveButton = canUpdate('button.save') || canCreate('button.save');
+  const showCancelButton = canRead('button.cancel');
   const statusOptions = UserManagementConfigManager.getStatusOptions();
   const workerTypes = UserManagementConfigManager.getWorkerTypes();
+
+  // Tab visibility based on ABAC
+  const showUserTab = canRead('tab.user');
+  const showRolesTab = canRead('tab.roles');
+  const showSettingsTab = canRead('tab.settings');
+  const showGroupsTab = canRead('tab.groups');
 
   const userId = user?.userId;
 
@@ -548,7 +715,6 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
     if (!userId) return;
 
     const loadUserData = async () => {
-      // Load profile settings (org, hiringDate, lastDate, workerType)
       setSettingsLoading(true);
       const settingsResponse = await userService.getProfileSettings(userId);
       if (settingsResponse.success && settingsResponse.data?.response) {
@@ -566,7 +732,6 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
       }
       setSettingsLoading(false);
 
-      // Load roles
       setRolesLoading(true);
       const [roleAttrsResponse, userAttrsResponse] = await Promise.all([
         userService.getSubjectAttributesByAttributeName('role'),
@@ -581,7 +746,6 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
       }
       setRolesLoading(false);
 
-      // Load groups
       setGroupsLoading(true);
       const [allGroupsResponse, userGroupsResponse] = await Promise.all([
         userService.getAllGroups(),
@@ -599,9 +763,9 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
     loadUserData();
   }, [userId, userService]);
 
-  // Load role attributes for new user too (for the Roles tab checkboxes)
+  // Load role attributes for new user too
   useEffect(() => {
-    if (userId) return; // already loaded above
+    if (userId) return;
     const loadRoleAttrs = async () => {
       setRolesLoading(true);
       const response = await userService.getSubjectAttributesByAttributeName('role');
@@ -630,9 +794,10 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
   const updateField = (field: string, value: string | number) =>
     setFormData(prev => ({ ...prev, [field]: value }));
 
-  // Toggle role assignment
   const handleToggleRole = async (attr: SubjectAttributeDTO) => {
     if (!userId || !attr.subjectAttrId) return;
+    if (!canUpdate('field.roleCheckbox')) return;
+
     const isAssigned = userRoleIds.has(attr.subjectAttrId);
 
     if (isAssigned) {
@@ -649,9 +814,10 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
     }
   };
 
-  // Add user to group
   const handleAddToGroup = async (group: UserGroupDTO) => {
     if (!userId || !group.groupId) return;
+    if (!canCreate('button.addToGroup')) return;
+
     const dto: UserGroupMembershipDTO = { userId, groupId: group.groupId };
     const response = await userService.addUserToGroup(dto);
     if (response.success && response.data) {
@@ -659,23 +825,21 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
     }
   };
 
-  // Remove user from group
   const handleRemoveFromGroup = async (membership: UserGroupMembershipDTO) => {
     if (!membership.membershipId) return;
+    if (!canDelete('button.removeFromGroup')) return;
+
     await userService.removeUserFromGroup(membership.membershipId);
     setUserMemberships(prev => prev.filter(m => m.membershipId !== membership.membershipId));
   };
 
-  // Save handler
   const handleSave = async () => {
-    if (!saveAction?.enabled || saving) return;
+    if (!showSaveButton || saving) return;
     setSaving(true);
 
     try {
-      // Save user (main tab)
       await onSave(formData, isNew ? password : undefined);
 
-      // Save profile settings (for existing users)
       if (userId) {
         const settingsToSave: Record<string, string> = { ...settings };
         if (selectedOrgId) {
@@ -698,6 +862,9 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
 
   const userGroupIds = new Set(userMemberships.map(m => m.groupId));
 
+  // Determine first available tab for default
+  const defaultTab = showUserTab ? 'user' : showRolesTab ? 'roles' : showSettingsTab ? 'settings' : showGroupsTab ? 'groups' : 'user';
+
   return (
     <div style={{ ...cssVars, padding: 'var(--spacing-lg)', backgroundColor: 'var(--color-surface)', minHeight: '100vh' } as React.CSSProperties}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
@@ -710,264 +877,295 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
         </button>
         <h1 style={{ fontSize: 'var(--font-size-xl)', color: 'var(--color-text)', fontWeight: 600 }}>
           {isNew ? 'Add New User' : 'Edit User'}
+          {fieldsReadonly && <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginLeft: '8px' }}>(Read Only)</span>}
         </h1>
       </div>
 
       <div style={{ backgroundColor: 'var(--color-background)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
-        <Tabs.Root defaultValue="user">
+        <Tabs.Root defaultValue={defaultTab}>
           <Tabs.List style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', padding: '0 var(--spacing-md)' }}>
-            <Tabs.Trigger value="user" style={tabStyle}>User</Tabs.Trigger>
-            <Tabs.Trigger value="roles" style={tabStyle}>Roles</Tabs.Trigger>
-            <Tabs.Trigger value="settings" style={tabStyle}>Settings</Tabs.Trigger>
-            <Tabs.Trigger value="groups" style={tabStyle}>Groups</Tabs.Trigger>
+            {showUserTab && <Tabs.Trigger value="user" style={tabStyle}>User</Tabs.Trigger>}
+            {showRolesTab && <Tabs.Trigger value="roles" style={tabStyle}>Roles</Tabs.Trigger>}
+            {showSettingsTab && <Tabs.Trigger value="settings" style={tabStyle}>Settings</Tabs.Trigger>}
+            {showGroupsTab && <Tabs.Trigger value="groups" style={tabStyle}>Groups</Tabs.Trigger>}
           </Tabs.List>
 
           <div style={{ padding: 'var(--spacing-lg)' }}>
             {/* User Tab */}
-            <Tabs.Content value="user">
-              <div style={gridStyle}>
-                <InputField fieldKey="userName" value={formData.userName || ''} onChange={v => updateField('userName', v)} />
-                <SelectFieldForm
-                  label="Status"
-                  value={String(formData.userStatus ?? 1)}
-                  onChange={v => updateField('userStatus', Number(v))}
-                  options={statusOptions.map(o => ({ value: String(o.value), label: o.label }))}
-                  required
-                />
-                <InputField fieldKey="firstName" value={formData.firstName || ''} onChange={v => updateField('firstName', v)} />
-                <InputField fieldKey="middleName" value={formData.middleName || ''} onChange={v => updateField('middleName', v)} />
-                <InputField fieldKey="lastName" value={formData.lastName || ''} onChange={v => updateField('lastName', v)} />
-                <InputField fieldKey="email" value={formData.email || ''} onChange={v => updateField('email', v)} />
-                {isNew && (
-                  <InputField fieldKey="password" value={password} onChange={setPassword} type="password" />
-                )}
-                <SelectFieldForm
-                  label="Organization"
-                  value={selectedOrgId}
-                  onChange={setSelectedOrgId}
-                  options={organizations.map(o => ({
-                    value: String(o.organizationId),
-                    label: o.organization,
-                  }))}
-                />
-              </div>
-            </Tabs.Content>
+            {showUserTab && (
+              <Tabs.Content value="user">
+                <div style={gridStyle}>
+                  {canRead('field.userName') && (
+                    <InputField fieldKey="userName" value={formData.userName || ''} onChange={v => updateField('userName', v)} abacReadonly={!canUpdate('field.userName')} />
+                  )}
+                  {canRead('field.userStatus') && (
+                    <SelectFieldForm
+                      label="Status"
+                      value={String(formData.userStatus ?? 1)}
+                      onChange={v => updateField('userStatus', Number(v))}
+                      options={statusOptions.map(o => ({ value: String(o.value), label: o.label }))}
+                      required
+                      disabled={!canUpdate('field.userStatus')}
+                    />
+                  )}
+                  {canRead('field.firstName') && (
+                    <InputField fieldKey="firstName" value={formData.firstName || ''} onChange={v => updateField('firstName', v)} abacReadonly={!canUpdate('field.firstName')} />
+                  )}
+                  {canRead('field.middleName') && (
+                    <InputField fieldKey="middleName" value={formData.middleName || ''} onChange={v => updateField('middleName', v)} abacReadonly={!canUpdate('field.middleName')} />
+                  )}
+                  {canRead('field.lastName') && (
+                    <InputField fieldKey="lastName" value={formData.lastName || ''} onChange={v => updateField('lastName', v)} abacReadonly={!canUpdate('field.lastName')} />
+                  )}
+                  {canRead('field.email') && (
+                    <InputField fieldKey="email" value={formData.email || ''} onChange={v => updateField('email', v)} abacReadonly={!canUpdate('field.email')} />
+                  )}
+                  {isNew && canRead('field.password') && (
+                    <InputField fieldKey="password" value={password} onChange={setPassword} type="password" abacReadonly={!canCreate('field.password')} />
+                  )}
+                  {canRead('field.organization') && (
+                    <SelectFieldForm
+                      label="Organization"
+                      value={selectedOrgId}
+                      onChange={setSelectedOrgId}
+                      options={organizations.map(o => ({
+                        value: String(o.organizationId),
+                        label: o.organization,
+                      }))}
+                      disabled={!canUpdate('field.organization')}
+                    />
+                  )}
+                </div>
+              </Tabs.Content>
+            )}
 
             {/* Roles Tab */}
-            <Tabs.Content value="roles">
-              <div style={{ maxWidth: '400px' }}>
-                <h3 style={{ fontSize: 'var(--font-size-md)', color: 'var(--color-text)', marginBottom: 'var(--spacing-md)' }}>
-                  Assign Roles
-                </h3>
-                {rolesLoading ? (
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>Loading roles...</p>
-                ) : roleAttributes.length === 0 ? (
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>No role attributes found.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-                    {roleAttributes.map(attr => {
-                      const isAssigned = attr.subjectAttrId ? userRoleIds.has(attr.subjectAttrId) : false;
-                      const isDisabled = !userId;
-                      return (
-                        <label key={attr.subjectAttrId} style={{
-                          display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)',
-                          padding: 'var(--spacing-md)', backgroundColor: 'var(--color-surface)',
-                          borderRadius: 'var(--radius-md)', cursor: isDisabled ? 'not-allowed' : 'pointer',
-                          opacity: isDisabled ? 0.6 : 1,
-                        }}>
-                          <Checkbox.Root
-                            checked={isAssigned}
-                            onCheckedChange={() => handleToggleRole(attr)}
-                            disabled={isDisabled}
-                            style={{
-                              width: 20, height: 20, backgroundColor: 'var(--color-background)',
-                              border: '2px solid var(--color-border)', borderRadius: 'var(--radius-sm)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}
-                          >
-                            <Checkbox.Indicator><Check size={14} color="var(--color-primary)" /></Checkbox.Indicator>
-                          </Checkbox.Root>
-                          <div>
-                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
-                              {attr.attributeValue}
-                            </span>
-                            {attr.attributeName && (
-                              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginLeft: 'var(--spacing-sm)' }}>
-                                ({attr.attributeName})
+            {showRolesTab && (
+              <Tabs.Content value="roles">
+                <div style={{ maxWidth: '400px' }}>
+                  <h3 style={{ fontSize: 'var(--font-size-md)', color: 'var(--color-text)', marginBottom: 'var(--spacing-md)' }}>
+                    Assign Roles
+                  </h3>
+                  {rolesLoading ? (
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>Loading roles...</p>
+                  ) : roleAttributes.length === 0 ? (
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>No role attributes found.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                      {roleAttributes.map(attr => {
+                        const isAssigned = attr.subjectAttrId ? userRoleIds.has(attr.subjectAttrId) : false;
+                        const isDisabled = !userId || !canUpdate('field.roleCheckbox');
+                        return (
+                          <label key={attr.subjectAttrId} style={{
+                            display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)',
+                            padding: 'var(--spacing-md)', backgroundColor: 'var(--color-surface)',
+                            borderRadius: 'var(--radius-md)', cursor: isDisabled ? 'not-allowed' : 'pointer',
+                            opacity: isDisabled ? 0.6 : 1,
+                          }}>
+                            <Checkbox.Root
+                              checked={isAssigned}
+                              onCheckedChange={() => handleToggleRole(attr)}
+                              disabled={isDisabled}
+                              style={{
+                                width: 20, height: 20, backgroundColor: 'var(--color-background)',
+                                border: '2px solid var(--color-border)', borderRadius: 'var(--radius-sm)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}
+                            >
+                              <Checkbox.Indicator><Check size={14} color="var(--color-primary)" /></Checkbox.Indicator>
+                            </Checkbox.Root>
+                            <div>
+                              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
+                                {attr.attributeValue}
                               </span>
-                            )}
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-                {!userId && !isNew && (
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--spacing-sm)' }}>
-                    Save the user first before assigning roles.
-                  </p>
-                )}
-                {isNew && (
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--spacing-sm)' }}>
-                    Save the user first before assigning roles.
-                  </p>
-                )}
-              </div>
-            </Tabs.Content>
+                              {attr.attributeName && (
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginLeft: 'var(--spacing-sm)' }}>
+                                  ({attr.attributeName})
+                                </span>
+                              )}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {!userId && (
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--spacing-sm)' }}>
+                      Save the user first before assigning roles.
+                    </p>
+                  )}
+                </div>
+              </Tabs.Content>
+            )}
 
             {/* Settings Tab */}
-            <Tabs.Content value="settings">
-              {settingsLoading ? (
-                <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>Loading settings...</p>
-              ) : (
-                <div style={gridStyle}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
-                    <label htmlFor="setting-hiringDate" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
-                      Hiring Date
-                    </label>
-                    <input
-                      id="setting-hiringDate"
-                      type="date"
-                      value={settings.hiringDate || ''}
-                      onChange={e => setSettings(prev => ({ ...prev, hiringDate: e.target.value }))}
-                      style={{
-                        padding: 'var(--spacing-sm) var(--spacing-md)',
-                        backgroundColor: 'var(--color-background)',
-                        border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                        fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', outline: 'none',
-                      }}
-                    />
+            {showSettingsTab && (
+              <Tabs.Content value="settings">
+                {settingsLoading ? (
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>Loading settings...</p>
+                ) : (
+                  <div style={gridStyle}>
+                    {canRead('field.hiringDate') && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                        <label htmlFor="setting-hiringDate" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                          Hiring Date
+                        </label>
+                        <input
+                          id="setting-hiringDate"
+                          type="date"
+                          value={settings.hiringDate || ''}
+                          onChange={e => setSettings(prev => ({ ...prev, hiringDate: e.target.value }))}
+                          disabled={!canUpdate('field.hiringDate')}
+                          style={{
+                            padding: 'var(--spacing-sm) var(--spacing-md)',
+                            backgroundColor: canUpdate('field.hiringDate') ? 'var(--color-background)' : 'var(--color-surface)',
+                            border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                            fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', outline: 'none',
+                            opacity: canUpdate('field.hiringDate') ? 1 : 0.6,
+                          }}
+                        />
+                      </div>
+                    )}
+                    {canRead('field.lastDate') && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                        <label htmlFor="setting-lastDate" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                          Last Date
+                        </label>
+                        <input
+                          id="setting-lastDate"
+                          type="date"
+                          value={settings.lastDate || ''}
+                          onChange={e => setSettings(prev => ({ ...prev, lastDate: e.target.value }))}
+                          disabled={!canUpdate('field.lastDate')}
+                          style={{
+                            padding: 'var(--spacing-sm) var(--spacing-md)',
+                            backgroundColor: canUpdate('field.lastDate') ? 'var(--color-background)' : 'var(--color-surface)',
+                            border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
+                            fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', outline: 'none',
+                            opacity: canUpdate('field.lastDate') ? 1 : 0.6,
+                          }}
+                        />
+                      </div>
+                    )}
+                    {canRead('field.workerType') && (
+                      <SelectFieldForm
+                        label="Type of Worker"
+                        value={settings.workerType || ''}
+                        onChange={v => setSettings(prev => ({ ...prev, workerType: v }))}
+                        options={workerTypes.map(wt => ({ value: wt, label: wt }))}
+                        disabled={!canUpdate('field.workerType')}
+                      />
+                    )}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
-                    <label htmlFor="setting-lastDate" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
-                      Last Date
-                    </label>
-                    <input
-                      id="setting-lastDate"
-                      type="date"
-                      value={settings.lastDate || ''}
-                      onChange={e => setSettings(prev => ({ ...prev, lastDate: e.target.value }))}
-                      style={{
-                        padding: 'var(--spacing-sm) var(--spacing-md)',
-                        backgroundColor: 'var(--color-background)',
-                        border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                        fontSize: 'var(--font-size-sm)', color: 'var(--color-text)', outline: 'none',
-                      }}
-                    />
-                  </div>
-                  <SelectFieldForm
-                    label="Type of Worker"
-                    value={settings.workerType || ''}
-                    onChange={v => setSettings(prev => ({ ...prev, workerType: v }))}
-                    options={workerTypes.map(wt => ({ value: wt, label: wt }))}
-                  />
-                </div>
-              )}
-              {isNew && (
-                <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--spacing-md)' }}>
-                  Settings will be saved after the user is created.
-                </p>
-              )}
-            </Tabs.Content>
+                )}
+                {isNew && (
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--spacing-md)' }}>
+                    Settings will be saved after the user is created.
+                  </p>
+                )}
+              </Tabs.Content>
+            )}
 
             {/* Groups Tab */}
-            <Tabs.Content value="groups">
-              <div style={{ maxWidth: '600px' }}>
-                <h3 style={{ fontSize: 'var(--font-size-md)', color: 'var(--color-text)', marginBottom: 'var(--spacing-md)' }}>
-                  Group Memberships
-                </h3>
-                {groupsLoading ? (
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>Loading groups...</p>
-                ) : !userId ? (
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
-                    Save the user first before managing group memberships.
-                  </p>
-                ) : (
-                  <>
-                    {/* Current memberships */}
-                    {userMemberships.length > 0 && (
-                      <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                        <h4 style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-sm)' }}>
-                          Current Groups
-                        </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-                          {userMemberships.map(membership => (
-                            <div key={membership.membershipId} style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                              padding: 'var(--spacing-md)', backgroundColor: 'var(--color-surface)',
-                              borderRadius: 'var(--radius-md)',
-                            }}>
-                              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
-                                {membership.groupName || `Group #${membership.groupId}`}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveFromGroup(membership)}
-                                style={{
-                                  padding: 'var(--spacing-xs) var(--spacing-sm)',
-                                  backgroundColor: 'var(--color-danger-bg)', color: 'var(--color-danger)',
-                                  border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-sm)',
-                                  cursor: 'pointer', fontSize: 'var(--font-size-xs)', fontWeight: 500,
-                                }}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Available groups to add */}
-                    {allGroups.filter(g => !userGroupIds.has(g.groupId!)).length > 0 && (
-                      <div>
-                        <h4 style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-sm)' }}>
-                          Available Groups
-                        </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-                          {allGroups.filter(g => !userGroupIds.has(g.groupId!)).map(group => (
-                            <div key={group.groupId} style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                              padding: 'var(--spacing-md)', backgroundColor: 'var(--color-surface)',
-                              borderRadius: 'var(--radius-md)',
-                            }}>
-                              <div>
+            {showGroupsTab && (
+              <Tabs.Content value="groups">
+                <div style={{ maxWidth: '600px' }}>
+                  <h3 style={{ fontSize: 'var(--font-size-md)', color: 'var(--color-text)', marginBottom: 'var(--spacing-md)' }}>
+                    Group Memberships
+                  </h3>
+                  {groupsLoading ? (
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>Loading groups...</p>
+                  ) : !userId ? (
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                      Save the user first before managing group memberships.
+                    </p>
+                  ) : (
+                    <>
+                      {userMemberships.length > 0 && (
+                        <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                          <h4 style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-sm)' }}>
+                            Current Groups
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                            {userMemberships.map(membership => (
+                              <div key={membership.membershipId} style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: 'var(--spacing-md)', backgroundColor: 'var(--color-surface)',
+                                borderRadius: 'var(--radius-md)',
+                              }}>
                                 <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
-                                  {group.groupName}
+                                  {membership.groupName || `Group #${membership.groupId}`}
                                 </span>
-                                {group.description && (
-                                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginLeft: 'var(--spacing-sm)' }}>
-                                    - {group.description}
-                                  </span>
+                                {canDelete('button.removeFromGroup') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveFromGroup(membership)}
+                                    style={{
+                                      padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                      backgroundColor: 'var(--color-danger-bg)', color: 'var(--color-danger)',
+                                      border: '1px solid var(--color-danger)', borderRadius: 'var(--radius-sm)',
+                                      cursor: 'pointer', fontSize: 'var(--font-size-xs)', fontWeight: 500,
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
                                 )}
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => handleAddToGroup(group)}
-                                style={{
-                                  padding: 'var(--spacing-xs) var(--spacing-sm)',
-                                  backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)',
-                                  border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-sm)',
-                                  cursor: 'pointer', fontSize: 'var(--font-size-xs)', fontWeight: 500,
-                                }}
-                              >
-                                Add
-                              </button>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {allGroups.length === 0 && userMemberships.length === 0 && (
-                      <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
-                        No groups available.
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-            </Tabs.Content>
+                      {canCreate('button.addToGroup') && allGroups.filter(g => !userGroupIds.has(g.groupId!)).length > 0 && (
+                        <div>
+                          <h4 style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-sm)' }}>
+                            Available Groups
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                            {allGroups.filter(g => !userGroupIds.has(g.groupId!)).map(group => (
+                              <div key={group.groupId} style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: 'var(--spacing-md)', backgroundColor: 'var(--color-surface)',
+                                borderRadius: 'var(--radius-md)',
+                              }}>
+                                <div>
+                                  <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
+                                    {group.groupName}
+                                  </span>
+                                  {group.description && (
+                                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginLeft: 'var(--spacing-sm)' }}>
+                                      - {group.description}
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddToGroup(group)}
+                                  style={{
+                                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                    backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)',
+                                    border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-sm)',
+                                    cursor: 'pointer', fontSize: 'var(--font-size-xs)', fontWeight: 500,
+                                  }}
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {allGroups.length === 0 && userMemberships.length === 0 && (
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                          No groups available.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </Tabs.Content>
+            )}
           </div>
         </Tabs.Root>
 
@@ -975,22 +1173,20 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
           display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)',
           padding: 'var(--spacing-lg)', borderTop: '1px solid var(--color-border)',
         }}>
-          {cancelAction?.visible && (
-            <button onClick={onCancel} disabled={!cancelAction.enabled} style={{
+          {showCancelButton && (
+            <button onClick={onCancel} style={{
               padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-background)',
               border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-              cursor: cancelAction.enabled ? 'pointer' : 'not-allowed',
-              fontSize: 'var(--font-size-sm)', color: 'var(--color-text)',
-              opacity: cancelAction.enabled ? 1 : 0.6,
+              cursor: 'pointer', fontSize: 'var(--font-size-sm)', color: 'var(--color-text)',
             }}>Cancel</button>
           )}
-          {saveAction?.visible && (
-            <button onClick={handleSave} disabled={!saveAction.enabled || saving} style={{
+          {showSaveButton && (
+            <button onClick={handleSave} disabled={saving} style={{
               padding: 'var(--spacing-sm) var(--spacing-lg)', backgroundColor: 'var(--color-primary)',
               border: 'none', borderRadius: 'var(--radius-md)',
-              cursor: (saveAction.enabled && !saving) ? 'pointer' : 'not-allowed',
+              cursor: saving ? 'not-allowed' : 'pointer',
               fontSize: 'var(--font-size-sm)', color: 'white', fontWeight: 500,
-              opacity: (saveAction.enabled && !saving) ? 1 : 0.6,
+              opacity: saving ? 0.6 : 1,
             }}>{saving ? 'Saving...' : 'Save'}</button>
           )}
         </div>
@@ -1000,21 +1196,28 @@ const UserForm = ({ user, userService, onSave, onCancel, isNew }: {
 };
 
 // ============================================================================
-// Main Component
+// Main Component - ABAC Controlled
 // ============================================================================
 
-export default function UserManagement() {
+export default function UserManagementABAC() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<'directory' | 'form'>('directory');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
+  // TODO: Replace with actual logged-in user ID from auth context
+  const [currentUserId] = useState<number | undefined>(1);
+
+  const baseUrl = useMemo(() => UserManagementConfigManager.getApiBaseUrl(), []);
+
   const userService = useMemo(() => {
-    const baseUrl = UserManagementConfigManager.getApiBaseUrl();
     const httpClient = createHttpClient({ baseURL: baseUrl, timeout: 30000 });
     return createUserService(httpClient);
-  }, []);
+  }, [baseUrl]);
+
+  // ABAC permissions hook
+  const { isLoading: abacLoading, error: abacError, canRead, canCreate, canUpdate, canDelete } = useAbacPermissions(currentUserId, baseUrl);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -1049,13 +1252,11 @@ export default function UserManagement() {
 
   const handleSave = async (userData: Partial<User>, password?: string) => {
     if (selectedUser && selectedUser.userId) {
-      // Update existing user
       const response = await userService.updateUser(selectedUser.userId, userData);
       if (response.success) {
         await fetchUsers();
       }
     } else {
-      // Register new user
       const response = await userService.register({
         userName: userData.userName || '',
         email: userData.email || '',
@@ -1083,6 +1284,38 @@ export default function UserManagement() {
     setSelectedUser(null);
   };
 
+  // Show loading overlay while ABAC permissions are being evaluated
+  if (abacLoading) {
+    return (
+      <MantineProvider>
+        <AbacLoadingOverlay />
+      </MantineProvider>
+    );
+  }
+
+  // Check page-level access
+  if (!canRead('page')) {
+    return (
+      <MantineProvider>
+        <div style={{ ...cssVars, padding: 'var(--spacing-xl)', textAlign: 'center', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' } as React.CSSProperties}>
+          <div>
+            <h1 style={{ fontSize: 'var(--font-size-xl)', color: 'var(--color-danger)', marginBottom: 'var(--spacing-md)' }}>
+              Access Denied
+            </h1>
+            <p style={{ color: 'var(--color-text-secondary)' }}>
+              You do not have permission to access User Management.
+            </p>
+            {abacError && (
+              <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--spacing-sm)' }}>
+                {abacError}
+              </p>
+            )}
+          </div>
+        </div>
+      </MantineProvider>
+    );
+  }
+
   return (
     <MantineProvider>
       {currentPage === 'directory'
@@ -1094,6 +1327,10 @@ export default function UserManagement() {
             onAddNew={handleAddNew}
             onRefresh={fetchUsers}
             onDeleteUser={handleDeleteUser}
+            canRead={canRead}
+            canCreate={canCreate}
+            canUpdate={canUpdate}
+            canDelete={canDelete}
           />
         : <UserForm
             user={selectedUser}
@@ -1101,6 +1338,10 @@ export default function UserManagement() {
             onSave={handleSave}
             onCancel={handleCancel}
             isNew={!selectedUser}
+            canRead={canRead}
+            canCreate={canCreate}
+            canUpdate={canUpdate}
+            canDelete={canDelete}
           />
       }
     </MantineProvider>

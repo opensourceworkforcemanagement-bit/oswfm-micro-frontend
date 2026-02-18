@@ -1,32 +1,49 @@
 /**
  * ABAC API Service
  * Comprehensive service for all ABAC API endpoints
- * Refactored to use HttpClient from commonServices
- * Follows SOLID principles and OWASP guidelines
+ * Copied from administrationmanagement (most up-to-date version)
+ * Adapted imports for usermanagement module
  */
 
 import {
   HttpClient,
   CommonService,
   ApiResponse,
-  SearchParams,
-} from './commonServices';
+} from './common.services';
 
 // ============================================================================
-// ABAC Types (imported from existing types)
+// Base Types (inlined from administrationmanagement/types)
 // ============================================================================
 
 export type UUID = string;
 
-export interface User {
-  userId: UUID;
-  username: string;
-  email?: string;
+export type RuleOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'not_contains'
+  | 'in'
+  | 'not_in'
+  | 'greater_than'
+  | 'less_than'
+  | 'greater_than_or_equal'
+  | 'less_than_or_equal'
+  | 'starts_with'
+  | 'ends_with';
+
+export type LogicalOperator = 'AND' | 'OR';
+
+// ============================================================================
+// ABAC Types (Service-specific types with numeric IDs for lookup tables)
+// ============================================================================
+
+export interface AbacUser {
+  userId: number;
+  userName: string;
   firstName?: string;
+  middleName?: string;
   lastName?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  userStatus: number;
 }
 
 export interface CreateUserRequest {
@@ -47,7 +64,8 @@ export interface UpdateUserRequest {
 export interface Resource {
   resourceId: UUID;
   resourceName: string;
-  resourceType: string;
+  resourceTypeId: number;
+  resourceTypeName: string;
   ownerId?: UUID;
   isActive: boolean;
   createdAt: string;
@@ -56,40 +74,42 @@ export interface Resource {
 
 export interface CreateResourceRequest {
   resourceName: string;
-  resourceType: string;
+  resourceTypeId: number;
   ownerId?: UUID;
 }
 
 export interface UpdateResourceRequest {
   resourceName?: string;
-  resourceType?: string;
+  resourceTypeId?: number;
   ownerId?: UUID;
   isActive?: boolean;
 }
 
-export interface Action {
-  actionId: UUID;
-  actionName: string;
+export interface Operation {
+  operationId: UUID;
+  operationName: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateActionRequest {
-  actionName: string;
+export interface CreateOperationRequest {
+  operationName: string;
   description?: string;
 }
 
-export interface UpdateActionRequest {
-  actionName?: string;
+export interface UpdateOperationRequest {
+  operationName?: string;
   description?: string;
 }
 
 export interface AttributeDefinition {
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName: string;
-  attributeCategory: 'subject' | 'resource' | 'environment';
-  dataType: string;
+  attributeCategoryId: number;
+  attributeCategoryName: string;
+  dataTypeId: number;
+  dataTypeName: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
@@ -97,8 +117,8 @@ export interface AttributeDefinition {
 
 export interface CreateAttributeDefinitionRequest {
   attributeName: string;
-  attributeCategory: 'subject' | 'resource' | 'environment';
-  dataType: string;
+  attributeCategoryId: number;
+  dataTypeId: number;
   description?: string;
 }
 
@@ -108,37 +128,97 @@ export interface UpdateAttributeDefinitionRequest {
 }
 
 export interface SubjectAttribute {
-  subjectAttributeId: UUID;
-  userId: UUID;
-  attributeDefinitionId: UUID;
+  subjectAttrId: number;
+  attributeId: number;
   attributeName?: string;
   attributeValue: string;
-  isActive: boolean;
-  effectiveFrom?: string;
-  effectiveTo?: string;
+  validFrom?: string;
+  validUntil?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateSubjectAttributeRequest {
-  userId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: number;
   attributeValue: string;
-  effectiveFrom?: string;
-  effectiveTo?: string;
+  validFrom?: string;
+  validUntil?: string;
 }
 
 export interface UpdateSubjectAttributeRequest {
   attributeValue?: string;
-  isActive?: boolean;
-  effectiveFrom?: string;
-  effectiveTo?: string;
+  validFrom?: string;
+  validUntil?: string;
+}
+
+export interface UserSubjectAttribute {
+  id: number;
+  userId: number;
+  username?: string;
+  subjectAttrId: number;
+  attributeName?: string;
+  attributeValue?: string;
+  createdAt: string;
+}
+
+export interface AssignAttributeToUserRequest {
+  userId: number;
+  subjectAttrId: number;
+}
+
+export interface GroupSubjectAttribute {
+  id: number;
+  groupId: number;
+  groupName?: string;
+  subjectAttrId: number;
+  attributeName?: string;
+  attributeValue?: string;
+  createdAt: string;
+}
+
+export interface AssignAttributeToGroupRequest {
+  groupId: number;
+  subjectAttrId: number;
+}
+
+export interface UserGroup {
+  groupId: number;
+  groupName: string;
+  description?: string;
+  parentGroupId?: number;
+  parentGroupName?: string;
+  createdAt: string;
+}
+
+export interface CreateUserGroupRequest {
+  groupName: string;
+  description?: string;
+  parentGroupId?: number;
+}
+
+export interface UpdateUserGroupRequest {
+  groupName?: string;
+  description?: string;
+  parentGroupId?: number;
+}
+
+export interface UserGroupMembership {
+  membershipId: number;
+  userId: number;
+  username?: string;
+  groupId: number;
+  groupName?: string;
+}
+
+export interface AddUserToGroupRequest {
+  userId: number;
+  groupId: number;
 }
 
 export interface ResourceAttribute {
   resourceAttributeId: UUID;
   resourceId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName?: string;
   attributeValue: string;
   isActive: boolean;
@@ -150,7 +230,7 @@ export interface ResourceAttribute {
 
 export interface CreateResourceAttributeRequest {
   resourceId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeValue: string;
   effectiveFrom?: string;
   effectiveTo?: string;
@@ -166,7 +246,8 @@ export interface UpdateResourceAttributeRequest {
 export interface Policy {
   policyId: UUID;
   policyName: string;
-  policyType: 'permit' | 'deny';
+  policyTypeId: number;
+  policyTypeName: string;
   description?: string;
   priority: number;
   isActive: boolean;
@@ -176,7 +257,7 @@ export interface Policy {
 
 export interface CreatePolicyRequest {
   policyName: string;
-  policyType: 'permit' | 'deny';
+  policyTypeId: number;
   description?: string;
   priority: number;
 }
@@ -191,50 +272,59 @@ export interface UpdatePolicyRequest {
 export interface PolicyRule {
   ruleId: UUID;
   policyId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   attributeName?: string;
   operator: RuleOperator;
   comparisonValue: string;
-  logicalOperator: 'AND' | 'OR';
+  logicalOperator: LogicalOperator;
   ruleOrder: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export type RuleOperator =
-  | 'equals'
-  | 'not_equals'
-  | 'contains'
-  | 'not_contains'
-  | 'in'
-  | 'not_in'
-  | 'greater_than'
-  | 'less_than'
-  | 'greater_than_or_equal'
-  | 'less_than_or_equal'
-  | 'starts_with'
-  | 'ends_with';
-
 export interface CreatePolicyRuleRequest {
   policyId: UUID;
-  attributeDefinitionId: UUID;
+  attributeId: UUID;
   operator: RuleOperator;
   comparisonValue: string;
-  logicalOperator?: 'AND' | 'OR';
+  logicalOperator?: LogicalOperator;
   ruleOrder: number;
 }
 
 export interface UpdatePolicyRuleRequest {
   operator?: RuleOperator;
   comparisonValue?: string;
-  logicalOperator?: 'AND' | 'OR';
+  logicalOperator?: LogicalOperator;
   ruleOrder?: number;
+}
+
+export interface PolicyObligation {
+  obligationId: number;
+  policyId: number;
+  obligationTypeId: number;
+  obligationTypeName: string;
+  obligationParams?: string;
+  isMandatory: boolean;
+  createdAt: string;
+}
+
+export interface CreatePolicyObligationRequest {
+  policyId: number;
+  obligationTypeId: number;
+  obligationParams?: string;
+  isMandatory?: boolean;
+}
+
+export interface UpdatePolicyObligationRequest {
+  obligationTypeId: number;
+  obligationParams?: string;
+  isMandatory?: boolean;
 }
 
 export interface AccessDecisionRequest {
   userId: UUID;
   resourceId: UUID;
-  actionId: UUID;
+  operationId: UUID;
   environmentAttributes?: Record<string, string>;
 }
 
@@ -252,17 +342,17 @@ export interface AccessDecisionResponse {
 // Base Services using CommonService
 // ============================================================================
 
-class UsersApiService extends CommonService<User> {
+class UsersApiService extends CommonService<AbacUser> {
   constructor(client: HttpClient) {
     super(client, 'users');
   }
 
-  async getUserByUsername(username: string): Promise<ApiResponse<User>> {
-    return this.client.get<User>(`/users/username/${username}`);
+  async getUserByUsername(username: string): Promise<ApiResponse<AbacUser>> {
+    return this.client.get<AbacUser>(`/users/username/${username}`);
   }
 
-  async getActiveUsers(): Promise<ApiResponse<User[]>> {
-    return this.client.get<User[]>('/users/active');
+  async getActiveUsers(): Promise<ApiResponse<AbacUser[]>> {
+    return this.client.get<AbacUser[]>('/users/active');
   }
 }
 
@@ -271,8 +361,8 @@ class ResourcesApiService extends CommonService<Resource> {
     super(client, 'resources');
   }
 
-  async getResourcesByType(type: string): Promise<ApiResponse<Resource[]>> {
-    return this.client.get<Resource[]>(`/resources/type/${type}`);
+  async getResourcesByType(resourceTypeId: number): Promise<ApiResponse<Resource[]>> {
+    return this.client.get<Resource[]>(`/resources/type/${resourceTypeId}`);
   }
 
   async getActiveResources(): Promise<ApiResponse<Resource[]>> {
@@ -284,13 +374,13 @@ class ResourcesApiService extends CommonService<Resource> {
   }
 }
 
-class ActionsApiService extends CommonService<Action> {
+class OperationsApiService extends CommonService<Operation> {
   constructor(client: HttpClient) {
-    super(client, 'actions');
+    super(client, 'operations');
   }
 
-  async getActionByName(name: string): Promise<ApiResponse<Action>> {
-    return this.client.get<Action>(`/actions/name/${name}`);
+  async getOperationByName(name: string): Promise<ApiResponse<Operation>> {
+    return this.client.get<Operation>(`/operations/name/${name}`);
   }
 }
 
@@ -303,8 +393,8 @@ class AttributeDefinitionsApiService extends CommonService<AttributeDefinition> 
     return this.client.get<AttributeDefinition>(`/attribute-definitions/name/${name}`);
   }
 
-  async getAttributeDefinitionsByCategory(category: string): Promise<ApiResponse<AttributeDefinition[]>> {
-    return this.client.get<AttributeDefinition[]>(`/attribute-definitions/category/${category}`);
+  async getAttributeDefinitionsByCategory(attributeCategoryId: number): Promise<ApiResponse<AttributeDefinition[]>> {
+    return this.client.get<AttributeDefinition[]>(`/attribute-definitions/category/${attributeCategoryId}`);
   }
 }
 
@@ -313,12 +403,50 @@ class SubjectAttributesApiService extends CommonService<SubjectAttribute> {
     super(client, 'subject-attributes');
   }
 
-  async getSubjectAttributesByUserId(userId: UUID): Promise<ApiResponse<SubjectAttribute[]>> {
-    return this.client.get<SubjectAttribute[]>(`/subject-attributes/user/${userId}`);
+  async getResolvedAttributesByUserId(userId: number): Promise<ApiResponse<SubjectAttribute[]>> {
+    return this.client.get<SubjectAttribute[]>(`/subject-attributes/user/${userId}/resolved`);
   }
 
-  async getActiveSubjectAttributesByUserId(userId: UUID): Promise<ApiResponse<SubjectAttribute[]>> {
-    return this.client.get<SubjectAttribute[]>(`/subject-attributes/user/${userId}/active`);
+  async getAttributesByGroupId(groupId: number): Promise<ApiResponse<GroupSubjectAttribute[]>> {
+    return this.client.get<GroupSubjectAttribute[]>(`/subject-attributes/group/${groupId}`);
+  }
+
+  async assignToUser(request: AssignAttributeToUserRequest): Promise<ApiResponse<UserSubjectAttribute>> {
+    return this.client.post<UserSubjectAttribute>('/subject-attributes/assign/user', request);
+  }
+
+  async removeFromUser(userId: number, subjectAttrId: number): Promise<ApiResponse<void>> {
+    return this.client.delete<void>(`/subject-attributes/assign/user/${userId}/${subjectAttrId}`);
+  }
+
+  async assignToGroup(request: AssignAttributeToGroupRequest): Promise<ApiResponse<GroupSubjectAttribute>> {
+    return this.client.post<GroupSubjectAttribute>('/subject-attributes/assign/group', request);
+  }
+
+  async removeFromGroup(groupId: number, subjectAttrId: number): Promise<ApiResponse<void>> {
+    return this.client.delete<void>(`/subject-attributes/assign/group/${groupId}/${subjectAttrId}`);
+  }
+}
+
+class UserGroupsApiService extends CommonService<UserGroup> {
+  constructor(client: HttpClient) {
+    super(client, 'user-groups');
+  }
+
+  async getMembersByGroupId(groupId: number): Promise<ApiResponse<UserGroupMembership[]>> {
+    return this.client.get<UserGroupMembership[]>(`/user-groups/${groupId}/members`);
+  }
+
+  async getGroupsByUserId(userId: number): Promise<ApiResponse<UserGroupMembership[]>> {
+    return this.client.get<UserGroupMembership[]>(`/user-groups/user/${userId}`);
+  }
+
+  async addUserToGroup(request: AddUserToGroupRequest): Promise<ApiResponse<UserGroupMembership>> {
+    return this.client.post<UserGroupMembership>('/user-groups/members', request);
+  }
+
+  async removeUserFromGroup(membershipId: number): Promise<ApiResponse<void>> {
+    return this.client.delete<void>(`/user-groups/members/${membershipId}`);
   }
 }
 
@@ -345,24 +473,32 @@ class PoliciesApiService extends CommonService<Policy> {
     return this.client.get<Policy[]>('/policies/active');
   }
 
-  async getPoliciesByType(type: string): Promise<ApiResponse<Policy[]>> {
-    return this.client.get<Policy[]>(`/policies/type/${type}`);
+  async getPoliciesByType(policyTypeId: number): Promise<ApiResponse<Policy[]>> {
+    return this.client.get<Policy[]>(`/policies/type/${policyTypeId}`);
   }
 
-  async addActionToPolicy(policyId: UUID, actionId: UUID): Promise<ApiResponse<void>> {
-    return this.client.post<void>(`/policies/${policyId}/actions/${actionId}`);
+  async getOperationsForPolicy(policyId: UUID): Promise<ApiResponse<Operation[]>> {
+    return this.client.get<Operation[]>(`/policies/${policyId}/operations`);
   }
 
-  async removeActionFromPolicy(policyId: UUID, actionId: UUID): Promise<ApiResponse<void>> {
-    return this.client.delete<void>(`/policies/${policyId}/actions/${actionId}`);
+  async getResourcesForPolicy(policyId: UUID): Promise<ApiResponse<Resource[]>> {
+    return this.client.get<Resource[]>(`/policies/${policyId}/resources`);
+  }
+
+  async addOperationToPolicy(policyId: UUID, operationId: UUID): Promise<ApiResponse<void>> {
+    return this.client.post<void>(`/policies/${policyId}/operations/${operationId}`);
+  }
+
+  async removeOperationFromPolicy(policyId: UUID, operationId: UUID): Promise<ApiResponse<void>> {
+    return this.client.delete<void>(`/policies/${policyId}/operations/${operationId}`);
   }
 
   async addResourceToPolicy(policyId: UUID, resourceId: UUID): Promise<ApiResponse<void>> {
     return this.client.post<void>(`/policies/${policyId}/resources/${resourceId}`);
   }
 
-  async addResourceTypeToPolicy(policyId: UUID, resourceType: string): Promise<ApiResponse<void>> {
-    return this.client.post<void>(`/policies/${policyId}/resource-types/${resourceType}`);
+  async addResourceTypeToPolicy(policyId: UUID, resourceTypeId: number): Promise<ApiResponse<void>> {
+    return this.client.post<void>(`/policies/${policyId}/resource-types/${resourceTypeId}`);
   }
 
   async removeResourceFromPolicy(policyId: UUID, resourceId: UUID): Promise<ApiResponse<void>> {
@@ -380,6 +516,20 @@ class PolicyRulesApiService extends CommonService<PolicyRule> {
   }
 }
 
+class PolicyObligationsApiService extends CommonService<PolicyObligation> {
+  constructor(client: HttpClient) {
+    super(client, 'policy-obligations');
+  }
+
+  async getObligationsByPolicyId(policyId: number): Promise<ApiResponse<PolicyObligation[]>> {
+    return this.client.get<PolicyObligation[]>(`/policy-obligations/policy/${policyId}`);
+  }
+
+  async getObligationsByType(obligationTypeId: number): Promise<ApiResponse<PolicyObligation[]>> {
+    return this.client.get<PolicyObligation[]>(`/policy-obligations/type/${obligationTypeId}`);
+  }
+}
+
 // ============================================================================
 // Main ABAC API Service (Facade Pattern)
 // ============================================================================
@@ -387,91 +537,34 @@ class PolicyRulesApiService extends CommonService<PolicyRule> {
 export class AbacApiService {
   public readonly users: UsersApiService;
   public readonly resources: ResourcesApiService;
-  public readonly actions: ActionsApiService;
+  public readonly operations: OperationsApiService;
   public readonly attributeDefinitions: AttributeDefinitionsApiService;
   public readonly subjectAttributes: SubjectAttributesApiService;
   public readonly resourceAttributes: ResourceAttributesApiService;
   public readonly policies: PoliciesApiService;
   public readonly policyRules: PolicyRulesApiService;
+  public readonly policyObligations: PolicyObligationsApiService;
+  public readonly userGroups: UserGroupsApiService;
 
   constructor(private client: HttpClient) {
     this.users = new UsersApiService(client);
     this.resources = new ResourcesApiService(client);
-    this.actions = new ActionsApiService(client);
+    this.operations = new OperationsApiService(client);
     this.attributeDefinitions = new AttributeDefinitionsApiService(client);
     this.subjectAttributes = new SubjectAttributesApiService(client);
     this.resourceAttributes = new ResourceAttributesApiService(client);
     this.policies = new PoliciesApiService(client);
     this.policyRules = new PolicyRulesApiService(client);
+    this.policyObligations = new PolicyObligationsApiService(client);
+    this.userGroups = new UserGroupsApiService(client);
   }
 
   // =========================================================================
-  // Convenience Methods (Backward Compatibility)
+  // Convenience Methods
   // =========================================================================
 
-  // Users
-  async getAllUsers(): Promise<User[]> {
-    const response = await this.users.getAll();
-    return response.data || [];
-  }
-
-  async getUserById(id: UUID): Promise<User> {
-    const response = await this.users.getById(id);
-    if (!response.success || !response.data) {
-      throw new Error('User not found');
-    }
-    return response.data;
-  }
-
-  async getUserByUsername(username: string): Promise<User> {
-    const response = await this.users.getUserByUsername(username);
-    if (!response.success || !response.data) {
-      throw new Error('User not found');
-    }
-    return response.data;
-  }
-
-  async getActiveUsers(): Promise<User[]> {
-    const response = await this.users.getActiveUsers();
-    return response.data || [];
-  }
-
-  async createUser(request: CreateUserRequest): Promise<User> {
-    const response = await this.users.create(request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to create user');
-    }
-    return response.data;
-  }
-
-  async updateUser(id: UUID, request: UpdateUserRequest): Promise<User> {
-    const response = await this.users.update(id, request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to update user');
-    }
-    return response.data;
-  }
-
-  async deleteUser(id: UUID): Promise<void> {
-    await this.users.delete(id);
-  }
-
-  // Resources
   async getAllResources(): Promise<Resource[]> {
     const response = await this.resources.getAll();
-    return response.data || [];
-  }
-
-  async getResourceById(id: UUID): Promise<Resource> {
-    const response = await this.resources.getById(id);
-    if (!response.success || !response.data) {
-      throw new Error('Resource not found');
-    }
-    return response.data;
-  }
-
-  async getResourcesByType(type: string): Promise<Resource[]> {
-    const response = await this.resources.getResourcesByType(type);
     return response.data || [];
   }
 
@@ -480,218 +573,20 @@ export class AbacApiService {
     return response.data || [];
   }
 
-  async getResourcesByOwner(ownerId: UUID): Promise<Resource[]> {
-    const response = await this.resources.getResourcesByOwner(ownerId);
+  async getResourcesByType(resourceTypeId: number): Promise<Resource[]> {
+    const response = await this.resources.getResourcesByType(resourceTypeId);
     return response.data || [];
   }
 
-  async createResource(request: CreateResourceRequest): Promise<Resource> {
-    const response = await this.resources.create(request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to create resource');
-    }
-    return response.data;
-  }
-
-  async updateResource(id: UUID, request: UpdateResourceRequest): Promise<Resource> {
-    const response = await this.resources.update(id, request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to update resource');
-    }
-    return response.data;
-  }
-
-  async deleteResource(id: UUID): Promise<void> {
-    await this.resources.delete(id);
-  }
-
-  // Actions
-  async getAllActions(): Promise<Action[]> {
-    const response = await this.actions.getAll();
+  async getAllOperations(): Promise<Operation[]> {
+    const response = await this.operations.getAll();
     return response.data || [];
   }
 
-  async getActionById(id: UUID): Promise<Action> {
-    const response = await this.actions.getById(id);
+  async getOperationByName(name: string): Promise<Operation> {
+    const response = await this.operations.getOperationByName(name);
     if (!response.success || !response.data) {
-      throw new Error('Action not found');
-    }
-    return response.data;
-  }
-
-  async getActionByName(name: string): Promise<Action> {
-    const response = await this.actions.getActionByName(name);
-    if (!response.success || !response.data) {
-      throw new Error('Action not found');
-    }
-    return response.data;
-  }
-
-  async createAction(request: CreateActionRequest): Promise<Action> {
-    const response = await this.actions.create(request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to create action');
-    }
-    return response.data;
-  }
-
-  async updateAction(id: UUID, request: UpdateActionRequest): Promise<Action> {
-    const response = await this.actions.update(id, request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to update action');
-    }
-    return response.data;
-  }
-
-  async deleteAction(id: UUID): Promise<void> {
-    await this.actions.delete(id);
-  }
-
-  // Attribute Definitions
-  async getAllAttributeDefinitions(): Promise<AttributeDefinition[]> {
-    const response = await this.attributeDefinitions.getAll();
-    return response.data || [];
-  }
-
-  async getAttributeDefinitionById(id: UUID): Promise<AttributeDefinition> {
-    const response = await this.attributeDefinitions.getById(id);
-    if (!response.success || !response.data) {
-      throw new Error('Attribute definition not found');
-    }
-    return response.data;
-  }
-
-  async getAttributeDefinitionByName(name: string): Promise<AttributeDefinition> {
-    const response = await this.attributeDefinitions.getAttributeDefinitionByName(name);
-    if (!response.success || !response.data) {
-      throw new Error('Attribute definition not found');
-    }
-    return response.data;
-  }
-
-  async getAttributeDefinitionsByCategory(category: string): Promise<AttributeDefinition[]> {
-    const response = await this.attributeDefinitions.getAttributeDefinitionsByCategory(category);
-    return response.data || [];
-  }
-
-  async createAttributeDefinition(request: CreateAttributeDefinitionRequest): Promise<AttributeDefinition> {
-    const response = await this.attributeDefinitions.create(request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to create attribute definition');
-    }
-    return response.data;
-  }
-
-  async updateAttributeDefinition(id: UUID, request: UpdateAttributeDefinitionRequest): Promise<AttributeDefinition> {
-    const response = await this.attributeDefinitions.update(id, request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to update attribute definition');
-    }
-    return response.data;
-  }
-
-  async deleteAttributeDefinition(id: UUID): Promise<void> {
-    await this.attributeDefinitions.delete(id);
-  }
-
-  // Subject Attributes
-  async getAllSubjectAttributes(): Promise<SubjectAttribute[]> {
-    const response = await this.subjectAttributes.getAll();
-    return response.data || [];
-  }
-
-  async getSubjectAttributeById(id: UUID): Promise<SubjectAttribute> {
-    const response = await this.subjectAttributes.getById(id);
-    if (!response.success || !response.data) {
-      throw new Error('Subject attribute not found');
-    }
-    return response.data;
-  }
-
-  async getSubjectAttributesByUserId(userId: UUID): Promise<SubjectAttribute[]> {
-    const response = await this.subjectAttributes.getSubjectAttributesByUserId(userId);
-    return response.data || [];
-  }
-
-  async getActiveSubjectAttributesByUserId(userId: UUID): Promise<SubjectAttribute[]> {
-    const response = await this.subjectAttributes.getActiveSubjectAttributesByUserId(userId);
-    return response.data || [];
-  }
-
-  async createSubjectAttribute(request: CreateSubjectAttributeRequest): Promise<SubjectAttribute> {
-    const response = await this.subjectAttributes.create(request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to create subject attribute');
-    }
-    return response.data;
-  }
-
-  async updateSubjectAttribute(id: UUID, request: UpdateSubjectAttributeRequest): Promise<SubjectAttribute> {
-    const response = await this.subjectAttributes.update(id, request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to update subject attribute');
-    }
-    return response.data;
-  }
-
-  async deleteSubjectAttribute(id: UUID): Promise<void> {
-    await this.subjectAttributes.delete(id);
-  }
-
-  // Resource Attributes
-  async getAllResourceAttributes(): Promise<ResourceAttribute[]> {
-    const response = await this.resourceAttributes.getAll();
-    return response.data || [];
-  }
-
-  async getResourceAttributeById(id: UUID): Promise<ResourceAttribute> {
-    const response = await this.resourceAttributes.getById(id);
-    if (!response.success || !response.data) {
-      throw new Error('Resource attribute not found');
-    }
-    return response.data;
-  }
-
-  async getResourceAttributesByResourceId(resourceId: UUID): Promise<ResourceAttribute[]> {
-    const response = await this.resourceAttributes.getResourceAttributesByResourceId(resourceId);
-    return response.data || [];
-  }
-
-  async getActiveResourceAttributesByResourceId(resourceId: UUID): Promise<ResourceAttribute[]> {
-    const response = await this.resourceAttributes.getActiveResourceAttributesByResourceId(resourceId);
-    return response.data || [];
-  }
-
-  async createResourceAttribute(request: CreateResourceAttributeRequest): Promise<ResourceAttribute> {
-    const response = await this.resourceAttributes.create(request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to create resource attribute');
-    }
-    return response.data;
-  }
-
-  async updateResourceAttribute(id: UUID, request: UpdateResourceAttributeRequest): Promise<ResourceAttribute> {
-    const response = await this.resourceAttributes.update(id, request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to update resource attribute');
-    }
-    return response.data;
-  }
-
-  async deleteResourceAttribute(id: UUID): Promise<void> {
-    await this.resourceAttributes.delete(id);
-  }
-
-  // Policies
-  async getAllPolicies(): Promise<Policy[]> {
-    const response = await this.policies.getAll();
-    return response.data || [];
-  }
-
-  async getPolicyById(id: UUID): Promise<Policy> {
-    const response = await this.policies.getById(id);
-    if (!response.success || !response.data) {
-      throw new Error('Policy not found');
+      throw new Error('Operation not found');
     }
     return response.data;
   }
@@ -701,92 +596,26 @@ export class AbacApiService {
     return response.data || [];
   }
 
-  async getPoliciesByType(type: string): Promise<Policy[]> {
-    const response = await this.policies.getPoliciesByType(type);
-    return response.data || [];
-  }
-
-  async createPolicy(request: CreatePolicyRequest): Promise<Policy> {
-    const response = await this.policies.create(request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to create policy');
-    }
-    return response.data;
-  }
-
-  async updatePolicy(id: UUID, request: UpdatePolicyRequest): Promise<Policy> {
-    const response = await this.policies.update(id, request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to update policy');
-    }
-    return response.data;
-  }
-
-  async deletePolicy(id: UUID): Promise<void> {
-    await this.policies.delete(id);
-  }
-
-  // Policy Rules
-  async getAllPolicyRules(): Promise<PolicyRule[]> {
-    const response = await this.policyRules.getAll();
-    return response.data || [];
-  }
-
-  async getPolicyRuleById(id: UUID): Promise<PolicyRule> {
-    const response = await this.policyRules.getById(id);
-    if (!response.success || !response.data) {
-      throw new Error('Policy rule not found');
-    }
-    return response.data;
-  }
-
   async getRulesByPolicyId(policyId: UUID): Promise<PolicyRule[]> {
     const response = await this.policyRules.getRulesByPolicyId(policyId);
     return response.data || [];
   }
 
-  async createPolicyRule(request: CreatePolicyRuleRequest): Promise<PolicyRule> {
-    const response = await this.policyRules.create(request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to create policy rule');
-    }
-    return response.data;
+  async getResolvedAttributesByUserId(userId: number): Promise<SubjectAttribute[]> {
+    const response = await this.subjectAttributes.getResolvedAttributesByUserId(userId);
+    return response.data || [];
   }
 
-  async updatePolicyRule(id: UUID, request: UpdatePolicyRuleRequest): Promise<PolicyRule> {
-    const response = await this.policyRules.update(id, request);
-    if (!response.success || !response.data) {
-      throw new Error('Failed to update policy rule');
-    }
-    return response.data;
+  async getActiveSubjectAttributesByUserId(userId: UUID): Promise<SubjectAttribute[]> {
+    const response = await this.subjectAttributes.getResolvedAttributesByUserId(Number(userId));
+    return response.data || [];
   }
 
-  async deletePolicyRule(id: UUID): Promise<void> {
-    await this.policyRules.delete(id);
+  async getActiveResourceAttributesByResourceId(resourceId: UUID): Promise<ResourceAttribute[]> {
+    const response = await this.resourceAttributes.getActiveResourceAttributesByResourceId(resourceId);
+    return response.data || [];
   }
 
-  // Policy Targets
-  async addActionToPolicy(policyId: UUID, actionId: UUID): Promise<void> {
-    await this.policies.addActionToPolicy(policyId, actionId);
-  }
-
-  async removeActionFromPolicy(policyId: UUID, actionId: UUID): Promise<void> {
-    await this.policies.removeActionFromPolicy(policyId, actionId);
-  }
-
-  async addResourceToPolicy(policyId: UUID, resourceId: UUID): Promise<void> {
-    await this.policies.addResourceToPolicy(policyId, resourceId);
-  }
-
-  async addResourceTypeToPolicy(policyId: UUID, resourceType: string): Promise<void> {
-    await this.policies.addResourceTypeToPolicy(policyId, resourceType);
-  }
-
-  async removeResourceFromPolicy(policyId: UUID, resourceId: UUID): Promise<void> {
-    await this.policies.removeResourceFromPolicy(policyId, resourceId);
-  }
-
-  // Access Evaluation
   async evaluateAccess(request: AccessDecisionRequest): Promise<AccessDecisionResponse> {
     const response = await this.client.post<AccessDecisionResponse>('/access/evaluate', request);
     if (!response.success || !response.data) {

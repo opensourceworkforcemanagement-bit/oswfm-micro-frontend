@@ -1,5 +1,5 @@
 // services/api.ts
-import localforage from 'localforage';
+import { authBridge } from './authBridge';
 
 // Type definitions
 export interface ApiResponse<T = any> {
@@ -112,33 +112,26 @@ class ApiService {
     this.timeout = 10000;
   }
 
-  // Get authentication token from storage
+  // Get authentication token from in-memory auth bridge
   async getAuthToken(): Promise<string | null> {
-    try {
-      const token = await localforage.getItem('authToken');
-      return token;
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-      return null;
-    }
+    return authBridge.getAccessToken();
   }
 
-  // Set authentication token in storage
+  // Set authentication token in in-memory auth bridge
   async setAuthToken(token: string): Promise<void> {
-    try {
-      await localforage.setItem('authToken', token);
-    } catch (error) {
-      console.error('Error setting auth token:', error);
-    }
+    // Individual access token set — used by LoginPage after login.
+    // For full token storage (access + refresh), use authBridge.setTokens() directly.
+    const existing = authBridge.getState().tokens;
+    authBridge.setTokens({
+      accessToken: token,
+      refreshToken: existing?.refreshToken ?? '',
+      accessTokenExpiresAt: existing?.accessTokenExpiresAt ?? 0,
+    });
   }
 
-  // Remove authentication token
+  // Remove authentication token from in-memory auth bridge
   async removeAuthToken(): Promise<void> {
-    try {
-      await localforage.removeItem('authToken');
-    } catch (error) {
-      console.error('Error removing auth token:', error);
-    }
+    authBridge.clear();
   }
 
   // Build request headers

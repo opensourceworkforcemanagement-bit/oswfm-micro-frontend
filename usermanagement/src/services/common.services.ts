@@ -122,47 +122,32 @@ export class TimeoutError extends Error {
 // ============================================================================
 
 class SecureTokenStorage implements TokenStorage {
-  private readonly TOKEN_KEY = 'auth_token';
   private readonly TOKEN_PATTERN = /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$/;
 
   async getToken(): Promise<string | null> {
-    try {
-      const token = localStorage.getItem(this.TOKEN_KEY);
-      if (token && this.validateToken(token)) {
-        return token;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error retrieving token:', error);
-      return null;
+    const token = (window as any).__AUTH__?.getAccessToken?.() ?? null;
+    if (token && this.validateToken(token)) {
+      return token;
     }
+    return null;
   }
 
   async setToken(token: string): Promise<void> {
-    try {
-      if (!this.validateToken(token)) {
-        throw new Error('Invalid token format');
-      }
-      localStorage.setItem(this.TOKEN_KEY, token);
-    } catch (error) {
-      console.error('Error storing token:', error);
-      throw error;
+    if (!this.validateToken(token)) {
+      throw new Error('Invalid token format');
     }
+    // Tokens are managed by the host auth bridge — this is a no-op for MFEs.
+    // The host sets tokens via window.__AUTH__.setTokens() after login.
   }
 
   async removeToken(): Promise<void> {
-    try {
-      localStorage.removeItem(this.TOKEN_KEY);
-    } catch (error) {
-      console.error('Error removing token:', error);
-    }
+    // Tokens are managed by the host auth bridge — MFEs should not clear auth state.
   }
 
   validateToken(token: string): boolean {
     if (!token || typeof token !== 'string') {
       return false;
     }
-    // Validate JWT format
     return this.TOKEN_PATTERN.test(token);
   }
 }

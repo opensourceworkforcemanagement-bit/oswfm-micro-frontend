@@ -94,7 +94,7 @@ interface AbacPermissions {
 // ABAC Hook: useAbacPermissions
 // ============================================================================
 
-function useAbacPermissions(userId: number | undefined, abacApiBaseUrl: string) {
+function useAbacPermissions(userId: string | undefined, abacApiBaseUrl: string) {
   const [permissions, setPermissions] = useState<AbacPermissions>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -166,7 +166,7 @@ function useAbacPermissions(userId: number | undefined, abacApiBaseUrl: string) 
 
             try {
               const result: ClientEvaluationResult = await evaluator.evaluate(
-                String(userId),
+                userId,
                 String(resource.resourceId),
                 String(op.operationId)
               );
@@ -1206,8 +1206,9 @@ export default function UserManagementABAC() {
   const [currentPage, setCurrentPage] = useState<'directory' | 'form'>('directory');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // TODO: Replace with actual logged-in user ID from auth context
-  const [currentUserId] = useState<number | undefined>(1);
+  const currentUserId = useMemo(() => {
+    return (window as any).__AUTH__?.getUser?.()?.userId as string | undefined;
+  }, []);
 
   const baseUrl = useMemo(() => UserManagementConfigManager.getApiBaseUrl(), []);
 

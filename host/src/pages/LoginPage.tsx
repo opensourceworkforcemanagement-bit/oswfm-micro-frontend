@@ -4,6 +4,7 @@ import "../index.css";
 import { useNavigate } from 'react-router-dom';
 // 1. Authentication with proper typing
 import apiService, { LoginCredentials } from '../services/commonServices';
+import { authBridge } from '../services/authBridge';
 import { MantineProvider, Modal } from '@mantine/core';
 import '@mantine/core/styles.css';
 import { useDisclosure } from '@mantine/hooks';
@@ -36,8 +37,13 @@ export default function LoginPage({ onLogin }) {
     console.log('Login response:', response);
 
     if (response.success) {
-      await apiService.setAuthToken(response.data.response.accessToken || '');
-      onLogin();      
+      const tokenData = (response.data as any)?.response;
+      authBridge.setTokens({
+        accessToken: tokenData?.accessToken || '',
+        refreshToken: tokenData?.refreshToken || '',
+        accessTokenExpiresAt: tokenData?.accessTokenExpiresAt || 0,
+      });
+      onLogin();
     } else {
       openModal();
       console.error('Login failed:', response.message);

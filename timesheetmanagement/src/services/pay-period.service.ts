@@ -77,15 +77,33 @@ export class PayPeriodService extends CommonService<PayPeriod> {
   }
 
   static formatPayPeriod(pp: PayPeriod): string {
-    const start = new Date(pp.startDate);
-    const end = new Date(pp.endDate);
-    const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const toDate = (v: Date | string | number[]) => {
+      if (Array.isArray(v)) return new Date(v[0], v[1] - 1, v[2]);
+      return new Date(v as string | number);
+    };
+    const start = toDate(pp.startDate as Date | string | number[]);
+    const end = toDate(pp.endDate as Date | string | number[]);
+    const fmt = (d: Date) => isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return `${fmt(start)} - ${fmt(end)}`;
   }
 
-  static formatDateForInput(date: Date | string): string {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toISOString().split('T')[0];
+  static formatDateForInput(date: Date | string | number[]): string {
+    let d: Date;
+    if (Array.isArray(date)) {
+      // Java LocalDate serializes as [year, month, day]
+      d = new Date(date[0], date[1] - 1, date[2]);
+    } else if (typeof date === 'string') {
+      d = new Date(date);
+    } else if (date instanceof Date) {
+      d = date;
+    } else {
+      return '';
+    }
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }
 

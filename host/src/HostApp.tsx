@@ -8,6 +8,7 @@ import * as Switch from '@radix-ui/react-switch';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import './index.css'
 import LoginPage from "./pages/LoginPage";
+import { authBridge } from './services/authBridge';
 import { MantineProvider } from '@mantine/core';
 const UserManagementComp = React.lazy(() => import('usermanagement/UserManagement'));
 const WorkCodeManagementComp = React.lazy(() => import('timesheetmanagement/WorkCodeManagement'));
@@ -603,7 +604,7 @@ export default function MicroFrontendHost() {
           element={
             (
               <SharedStateProvider>
-                <Layout onLogout={() => setIsAuthenticated(false)}>
+                <Layout onLogout={() => { authBridge.clear(); setIsAuthenticated(false); }}>
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route 

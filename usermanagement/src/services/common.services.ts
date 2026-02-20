@@ -125,23 +125,17 @@ class SecureTokenStorage implements TokenStorage {
   private readonly TOKEN_PATTERN = /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$/;
 
   async getToken(): Promise<string | null> {
-    const token = (window as any).__AUTH__?.getAccessToken?.() ?? null;
-    if (token && this.validateToken(token)) {
-      return token;
-    }
+    // BFF pattern: tokens are stored server-side in the Spring Session.
+    // The browser sends the APPSESSION cookie; no token is available client-side.
     return null;
   }
 
-  async setToken(token: string): Promise<void> {
-    if (!this.validateToken(token)) {
-      throw new Error('Invalid token format');
-    }
-    // Tokens are managed by the host auth bridge — this is a no-op for MFEs.
-    // The host sets tokens via window.__AUTH__.setTokens() after login.
+  async setToken(_token: string): Promise<void> {
+    // No-op: tokens are managed server-side by the BFF gateway.
   }
 
   async removeToken(): Promise<void> {
-    // Tokens are managed by the host auth bridge — MFEs should not clear auth state.
+    // No-op: session invalidation is handled by the BFF /logout endpoint.
   }
 
   validateToken(token: string): boolean {
@@ -198,7 +192,7 @@ class InputSanitizer {
     const allowedHeaders = [
       'content-type',
       'accept',
-      'authorization',
+      'x-xsrf-token',
       'x-csrf-token',
       'x-request-id',
     ];
@@ -281,7 +275,7 @@ export class HttpClient {
   /**
    * Build secure headers for request
    */
-  private async buildHeaders(customHeaders: Record<string, string> = {}, skipAuth: boolean = false): Promise<Record<string, string>> {
+  private buildHeaders(method: string, customHeaders: Record<string, string> = {}): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -289,16 +283,16 @@ export class HttpClient {
       ...customHeaders,
     };
 
-    // Add authentication token
-    if (!skipAuth) {
-      const token = await this.tokenStorage.getToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+    // CSRF token for state-mutating requests (BFF pattern)
+    const mutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
+    if (mutating) {
+      const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+      if (match) {
+        headers['X-XSRF-TOKEN'] = decodeURIComponent(match[1]);
       }
     }
 
-    // Sanitize headers
-    return InputSanitizer.sanitizeHeaders(headers);
+    return headers;
   }
 
   /**
@@ -446,13 +440,13 @@ export class HttpClient {
 
     const executeRequest = async (): Promise<ApiResponse<T>> => {
       try {
-        const headers = await this.buildHeaders(customHeaders, skipAuth);
+        const headers = this.buildHeaders(method, customHeaders);
         const url = `${this.baseURL}${sanitizedEndpoint}`;
 
         const requestConfig: RequestInit = {
           method,
           headers,
-          credentials: 'same-origin', // CSRF protection
+          credentials: 'include',
         };
 
         // Add body for non-GET requests

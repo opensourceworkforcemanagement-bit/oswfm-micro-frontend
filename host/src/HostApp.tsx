@@ -1,4 +1,3 @@
-import ReactDOM from "react-dom/client";
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Menu, Home, Users, Settings, X, Bell, Share2, ChevronDown, ChevronRight, Check, Activity, PersonStandingIcon, Shield, Calendar, Clock  } from 'lucide-react';
@@ -8,7 +7,7 @@ import * as Switch from '@radix-ui/react-switch';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import './index.css'
 import LoginPage from "./pages/LoginPage";
-import { authBridge } from './services/authBridge';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MantineProvider } from '@mantine/core';
 const UserManagementComp = React.lazy(() => import('usermanagement/UserManagement'));
 const WorkCodeManagementComp = React.lazy(() => import('timesheetmanagement/WorkCodeManagement'));
@@ -571,92 +570,82 @@ function Layout({ children, onLogout }) {
 }
 
 
-// Main Host Application with Router
-export default function MicroFrontendHost() {
-
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={() => setIsAuthenticated(true)} />;
-  }
+// Inner app — consumes AuthProvider, must be a child of it.
+// MantineProvider and BrowserRouter are always mounted (never conditionally swapped)
+// to avoid React portal reconciliation errors when the tree shape changes.
+function AppShell() {
+  const { isAuthenticated, isLoading, logout } = useAuth();
 
   return (
- <MantineProvider >
-     <BrowserRouter>
-      <Routes>
-        {/* Login route - accessible when not authenticated */}
-        <Route 
-          path="/login" 
-          element={
-            isAuthenticated ? (
-              <Navigate to="/" replace />
-            ) : (
-             
-                <LoginPage onLogin={() => setIsAuthenticated(true)} />
-              
-            )
-          } 
-        />
-
-        {/* Protected routes - redirect to login if not authenticated */}
-        <Route
-          path="/*"
-          element={
-            (
-              <SharedStateProvider>
-                <Layout onLogout={() => { authBridge.clear(); setIsAuthenticated(false); }}>
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route 
-                      path="/users/*" 
-                      element={
+    <MantineProvider>
+      <BrowserRouter>
+        {isLoading ? (
+          <div className="flex h-screen items-center justify-center text-gray-500">Loading…</div>
+        ) : !isAuthenticated ? (
+          <LoginPage onLogin={() => {/* auth state is set inside AuthContext.login() */}} />
+        ) : (
+          <Routes>
+            <Route
+              path="/login"
+              element={<Navigate to="/" replace />}
+            />
+            <Route
+              path="/*"
+              element={
+                <SharedStateProvider>
+                  <Layout onLogout={logout}>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/users/*" element={
                         <React.Suspense fallback={<div className="p-6">Loading...</div>}>
                           <UserManagementComp />
                         </React.Suspense>
-                      } 
-                    />
-                    <Route path="/employees/*" element={
-                      <React.Suspense fallback={<div className="p-6">Loading...</div>}>
-                        <EmployeeManagementComp />
-                      </React.Suspense>
-                    } />
-                    <Route 
-                      path="/workcodes/*" 
-                      element={
+                      } />
+                      <Route path="/employees/*" element={
+                        <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                          <EmployeeManagementComp />
+                        </React.Suspense>
+                      } />
+                      <Route path="/workcodes/*" element={
                         <React.Suspense fallback={<div className="p-6">Loading...</div>}>
                           <WorkCodeManagementComp />
                         </React.Suspense>
-                      } 
-                    />
-                    <Route path="/timesheet/*" element={
-                      <React.Suspense fallback={<div className="p-6">Loading...</div>}>
-                        <TimesheetManagementComp />
-                      </React.Suspense>
-                    } />
-                    <Route path="/pay-periods/*" element={
-                      <React.Suspense fallback={<div className="p-6">Loading...</div>}>
-                        <PayPeriodManagementComp />
-                      </React.Suspense>
-                    } />
-                    <Route path="/administration/access-control/*" element={
-                      <React.Suspense fallback={<div className="p-6">Loading...</div>}>
-                        <AccessControlComp />
-                      </React.Suspense>
-                    } />
-                    <Route path="/settings" element={<SettingsModule />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </Layout>
-              </SharedStateProvider> 
-            ) 
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+                      } />
+                      <Route path="/timesheet/*" element={
+                        <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                          <TimesheetManagementComp />
+                        </React.Suspense>
+                      } />
+                      <Route path="/pay-periods/*" element={
+                        <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                          <PayPeriodManagementComp />
+                        </React.Suspense>
+                      } />
+                      <Route path="/administration/access-control/*" element={
+                        <React.Suspense fallback={<div className="p-6">Loading...</div>}>
+                          <AccessControlComp />
+                        </React.Suspense>
+                      } />
+                      <Route path="/settings" element={<SettingsModule />} />
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </Layout>
+                </SharedStateProvider>
+              }
+            />
+          </Routes>
+        )}
+      </BrowserRouter>
     </MantineProvider>
-
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById("app"));
-root.render(<MicroFrontendHost />);
+// Main Host Application — AuthProvider wraps everything
+export default function MicroFrontendHost() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
+  );
+}
+

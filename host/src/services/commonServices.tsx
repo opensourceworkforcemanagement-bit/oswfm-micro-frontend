@@ -1,5 +1,4 @@
 // services/api.ts
-import { authBridge } from './authBridge';
 
 // Type definitions
 export interface ApiResponse<T = any> {
@@ -112,39 +111,20 @@ class ApiService {
     this.timeout = 10000;
   }
 
-  // Get authentication token from in-memory auth bridge
-  async getAuthToken(): Promise<string | null> {
-    return authBridge.getAccessToken();
-  }
-
-  // Set authentication token in in-memory auth bridge
-  async setAuthToken(token: string): Promise<void> {
-    // Individual access token set — used by LoginPage after login.
-    // For full token storage (access + refresh), use authBridge.setTokens() directly.
-    const existing = authBridge.getState().tokens;
-    authBridge.setTokens({
-      accessToken: token,
-      refreshToken: existing?.refreshToken ?? '',
-      accessTokenExpiresAt: existing?.accessTokenExpiresAt ?? 0,
-    });
-  }
-
-  // Remove authentication token from in-memory auth bridge
-  async removeAuthToken(): Promise<void> {
-    authBridge.clear();
-  }
-
-  // Build request headers
-  private async buildHeaders(customHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
-    const token = await this.getAuthToken();
+  // Build request headers — no Bearer token (session cookie handles auth)
+  private buildHeaders(method: string, customHeaders: Record<string, string> = {}): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       ...customHeaders,
     };
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
+    const mutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
+    if (mutating) {
+      const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+      if (match) {
+        headers['X-XSRF-TOKEN'] = decodeURIComponent(match[1]);
+      }
     }
 
     return headers;
@@ -165,8 +145,6 @@ class ApiService {
     
     switch (status) {
       case HTTP_STATUS.UNAUTHORIZED:
-        // Clear token on unauthorized
-        this.removeAuthToken();
         return {
           success: false,
           error: 'Unauthorized',
@@ -207,9 +185,9 @@ class ApiService {
   // Generic API request method
   async apiRequest<T = any>(endpoint: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
     const { method = 'GET', data, customHeaders, timeout } = options;
-    
+
     try {
-      const headers = await this.buildHeaders(customHeaders);
+      const headers = this.buildHeaders(method, customHeaders);
       const url = `${this.baseURL}${endpoint}`;
       
       console.log(`API Request: ${method} -> ${url}`);
@@ -229,7 +207,7 @@ class ApiService {
       config.signal = controller.signal;
 
       console.log(`API Request: ${config} -> ${url}`);
-      const response = await fetch(url, config);
+      const response = await fetch(url, { ...config, credentials: 'include' });
       clearTimeout(timeoutId);
 
       let responseData: T | null = null;
@@ -271,16 +249,10 @@ class ApiService {
 
   // Authentication Methods
   async login(credentials: LoginCredentials): Promise<ApiResponse<{ token: string; user: User }>> {
-    const response = await this.apiRequest<{ token: string; user: User }>('/users/login', {
+    return await this.apiRequest<{ token: string; user: User }>('/users/login', {
       method: 'POST',
       data: credentials,
     });
-
-    if (response.success && response.data?.token) {
-      await this.setAuthToken(response.data.token);
-    }
-
-    return response;
   }
 
   async register(userData: RegisterData): Promise<ApiResponse<{ user: User }>> {
@@ -301,15 +273,9 @@ class ApiService {
   }
 
   async refreshToken(): Promise<ApiResponse<{ token: string }>> {
-    const response = await this.apiRequest<{ token: string }>('/auth/refresh', {
+    return await this.apiRequest<{ token: string }>('/auth/refresh', {
       method: 'POST',
     });
-
-    if (response.success && response.data?.token) {
-      await this.setAuthToken(response.data.token);
-    }
-
-    return response;
   }
 
   // Generic CRUD Operations
@@ -389,36 +355,35 @@ class ApiService {
 
   // File upload
   async uploadFile(
-    endpoint: string, 
-    file: FileUpload, 
+    endpoint: string,
+    file: FileUpload,
     additionalData: Record<string, any> = {}
   ): Promise<ApiResponse<{ imageUrl: string; fileId: string }>> {
     try {
-      const token = await this.getAuthToken();
       const formData = new FormData();
-      
+
       formData.append('file', {
         uri: file.uri,
         type: file.type || 'image/jpeg',
         name: file.name || 'upload.jpg',
       } as any);
 
-      // Add additional form data
       Object.keys(additionalData).forEach(key => {
         formData.append(key, additionalData[key]);
       });
 
+      const csrfMatch = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
       const headers: Record<string, string> = {
         'Content-Type': 'multipart/form-data',
       };
-
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
+      if (csrfMatch) {
+        headers['X-XSRF-TOKEN'] = decodeURIComponent(csrfMatch[1]);
       }
 
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         method: 'POST',
         headers,
+        credentials: 'include',
         body: formData,
       });
 

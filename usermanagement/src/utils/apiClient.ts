@@ -1,54 +1,56 @@
 interface RequestConfig extends RequestInit {
-  skipAuth?: boolean;
+  skipCsrf?: boolean;
+}
+
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function getCsrfToken(): string {
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : '';
 }
 
 class APIClient {
   private baseURL: string;
-  private getAccessToken: (() => string | null) | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
   }
 
-  setTokenGetter(getter: () => string | null) {
-    this.getAccessToken = getter;
-  }
-
   async request<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {
-    const { skipAuth = false, headers = {}, ...restConfig } = config;
+    const { skipCsrf = false, headers = {}, ...restConfig } = config;
+    const method = (restConfig.method ?? 'GET').toUpperCase();
 
     const url = `${this.baseURL}${endpoint}`;
-    
+
     const headersObj = new Headers(headers as HeadersInit);
-    // Ensure default content type
     if (!headersObj.has('Content-Type')) {
       headersObj.set('Content-Type', 'application/json');
     }
 
-    // Add Authorization header if not skipped
-    if (!skipAuth && this.getAccessToken) {
-      const token = this.getAccessToken();
-      if (token) {
-        headersObj.set('Authorization', `Bearer ${token}`);
+    // Attach CSRF token for state-mutating requests
+    if (!skipCsrf && MUTATING_METHODS.has(method)) {
+      const csrf = getCsrfToken();
+      if (csrf) {
+        headersObj.set('X-XSRF-TOKEN', csrf);
       }
     }
 
     try {
       const response = await fetch(url, {
         ...restConfig,
+        method,
         headers: headersObj,
         credentials: 'include',
       });
 
-      // Handle 401 Unauthorized - trigger refresh or logout
-      if (response.status === 401 && !skipAuth) {
+      if (response.status === 401) {
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         throw new Error('Unauthorized');
       }
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || `HTTP Error: ${response.status}`);
+        throw new Error((error as any).message || `HTTP Error: ${response.status}`);
       }
 
       return await response.json();
@@ -78,11 +80,17 @@ class APIClient {
     });
   }
 
+  patch<T>(endpoint: string, data?: any, config?: RequestConfig): Promise<T> {
+    return this.request<T>(endpoint, {
+      ...config,
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   delete<T>(endpoint: string, config?: RequestConfig): Promise<T> {
     return this.request<T>(endpoint, { ...config, method: 'DELETE' });
   }
 }
 
-export const apiClient = new APIClient(  
-     'http://localhost:1110/api'
-);
+export const apiClient = new APIClient('http://localhost:1110/api');

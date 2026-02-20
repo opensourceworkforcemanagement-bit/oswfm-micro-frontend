@@ -1,54 +1,32 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import "../index.css";
-import { useNavigate } from 'react-router-dom';
-// 1. Authentication with proper typing
-import apiService, { LoginCredentials } from '../services/commonServices';
-import { authBridge } from '../services/authBridge';
+import { useAuth } from '../contexts/AuthContext';
 import { MantineProvider, Modal } from '@mantine/core';
 import '@mantine/core/styles.css';
 import { useDisclosure } from '@mantine/hooks';
 
 export default function LoginPage({ onLogin }) {
-  const [email, setEmail] = useState('');
+  const { login } = useAuth();
   const [userName, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  
-  const [open, setOpen] = useState(false);
-  const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
 
+  const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
 
   const handleSubmit = async () => {
     if (!userName || !password) {
       alert('Please fill in all fields');
-    
       return;
     }
 
-    const credentials: LoginCredentials = {
-          userName,
-          password
-    };
-  
-    const response = await apiService.login(credentials);
-    
-    console.log('Login response:', response);
-
-    if (response.success) {
-      const tokenData = (response.data as any)?.response;
-      authBridge.setTokens({
-        accessToken: tokenData?.accessToken || '',
-        refreshToken: tokenData?.refreshToken || '',
-        accessTokenExpiresAt: tokenData?.accessTokenExpiresAt || 0,
-      });
+    try {
+      await login(userName, password);
       onLogin();
-    } else {
+    } catch (error) {
       openModal();
-      console.error('Login failed:', response.message);
+      console.error('Login failed:', error);
     }
-    
   };
 
   const handleKeyPress = (e) => {
@@ -57,9 +35,7 @@ export default function LoginPage({ onLogin }) {
     }
   };
 
-
   return (
-
     <MantineProvider>
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -119,16 +95,7 @@ export default function LoginPage({ onLogin }) {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-                />
-                <span className="ml-2 text-sm text-gray-700">Remember me</span>
-              </label>
+            <div className="flex items-center justify-end">
               <button className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
                 Forgot password?
               </button>
@@ -157,7 +124,6 @@ export default function LoginPage({ onLogin }) {
           Protected by security. Terms & Privacy
         </p>
       </div>
-
     </div>
     </MantineProvider>
   );

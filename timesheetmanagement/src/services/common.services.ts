@@ -452,7 +452,7 @@ export class HttpClient {
         const requestConfig: RequestInit = {
           method,
           headers,
-          credentials: 'same-origin', // CSRF protection
+          credentials: 'include', // Required: send APPSESSION cookie cross-origin to gateway
         };
 
         // Add body for non-GET requests

@@ -1206,8 +1206,23 @@ export default function UserManagementABAC() {
   const [currentPage, setCurrentPage] = useState<'directory' | 'form'>('directory');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  const currentUserId = useMemo(() => {
-    return (window as any).__AUTH__?.getUser?.()?.userId as string | undefined;
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(
+    () => (window as any).__AUTH__?.getUser?.()?.userId as string | undefined
+  );
+
+  useEffect(() => {
+    const handleLogin = (e: Event) => {
+      const user = (e as CustomEvent).detail?.user;
+      setCurrentUserId(user?.userId as string | undefined);
+    };
+    const handleLogout = () => setCurrentUserId(undefined);
+
+    window.addEventListener('auth:login', handleLogin);
+    window.addEventListener('auth:logout', handleLogout);
+    return () => {
+      window.removeEventListener('auth:login', handleLogin);
+      window.removeEventListener('auth:logout', handleLogout);
+    };
   }, []);
 
   const baseUrl = useMemo(() => UserManagementConfigManager.getApiBaseUrl(), []);

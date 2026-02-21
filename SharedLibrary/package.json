@@ -4,27 +4,25 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "cross-env NODE_ENV=production rspack build",
-    "build:dev": "cross-env NODE_ENV=development rspack build",
+    "build": "NODE_ENV=production rspack build",
+    "build:dev": "NODE_ENV=development rspack build",
     "build:start": "cd dist && rspack serve",
-    "start": "cross-env NODE_ENV=development rspack serve",
-    "rebuild": "rimraf dist && cross-env NODE_ENV=production rspack build"
+    "start": "NODE_ENV=development rspack serve",
+    "rebuild": "rm -rf dist && NODE_ENV=production rspack build"
   },
   "devDependencies": {
     "@rspack/cli": "~1.2.0",
     "@rspack/core": "~1.2.0",
     "@rspack/plugin-react-refresh": "~1.0.1",
     "@tailwindcss/postcss": "^4.0.3",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.1.0",
-    "cross-env": "^10.1.0",
     "css-loader": "^7.1.2",
     "postcss": "^8.2.1",
     "postcss-loader": "^8.0.0",
     "react-refresh": "^0.14.0",
     "tailwindcss": "^4.0.3",
-    "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
   },
   "dependencies": {
@@ -36,9 +34,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@radix-ui/themes": "^3.2.1",
-    "install": "^0.13.0",
-    "npm": "^11.6.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

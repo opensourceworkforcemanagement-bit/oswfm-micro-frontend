@@ -29,7 +29,7 @@ export default defineConfig({
   devServer: {
     port: 3004,
     historyApiFallback: true,
-    watchFiles: [path.resolve(__dirname, "src")],
+    watchFiles: [{ paths: [path.resolve(__dirname, "src")], options: { ignored: ["**/@mf-types/**", "**/dist/**", "**/node_modules/**"] } }],
   },
   output: {
     // You need to set a unique value that is not equal to other applications

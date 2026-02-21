@@ -86,7 +86,7 @@ const pageStyles = {
   } as React.CSSProperties,
   tabsTriggerActive: {
     color: 'var(--color-primary)',
-    borderBottomColor: 'var(--color-primary)',
+    borderBottom: '3px solid var(--color-primary)',
   } as React.CSSProperties,
   tabsContent: {
     flex: 1,

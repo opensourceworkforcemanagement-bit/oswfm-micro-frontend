@@ -14,7 +14,8 @@
     "allowImportingTsExtensions": true,
     "paths": {
       "*": ["./@mf-types/*"],
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "SharedLibrary/*": ["../SharedLibrary/src/*"]
     },
      "baseUrl": ".",
   },

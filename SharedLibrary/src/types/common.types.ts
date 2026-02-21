@@ -46,7 +46,7 @@ export interface TabConfig {
 }
 
 // Page configuration
-interface PageConfig<T> {
+export interface PageConfig<T> {
   entityName: string; // e.g., "Work Code", "User", "Product"
   entityNamePlural: string; // e.g., "Work Codes", "Users", "Products"
   idField: keyof T; // The field that serves as the ID

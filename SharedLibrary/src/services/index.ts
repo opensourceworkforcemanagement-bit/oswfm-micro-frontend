@@ -1,9 +1,9 @@
 /**
  * ABAC Services - Main Export File
- * 
+ *
  * This module provides a comprehensive set of services for implementing
  * Attribute-Based Access Control (ABAC) in client applications.
- * 
+ *
  * Architecture:
  * - commonServices.ts: Core HTTP client with OWASP security features
  * - user.service.ts: User authentication and profile management
@@ -15,29 +15,32 @@
 // Core Services
 // ============================================================================
 
-export {
+export type {
   ApiResponse,
   RequestConfig,
   HttpClientConfig,
   TokenStorage,
   HttpMethod,
-  HttpClient,
   HttpStatus,
+  LookupType,
+  AllLookupData,
+} from './common.services';
+
+export {
+  HttpClient,
   CommonService,
   BatchService,
   HTTP_STATUS,
   ApiError,
   NetworkError,
   TimeoutError,
-  LookupType,
-  AllLookupData,
   createHttpClient,
   createCommonService,
   createBatchService,
 } from './common.services';
 
 
-export{
+export type {
   BaseEntity,
   FieldConfig,
   ColumnConfig,
@@ -50,23 +53,25 @@ export{
 // User Service
 // ============================================================================
 
-export {
-  UserService,
+export type {
   User,
   LoginCredentials,
   RegisterData,
   ChangePasswordData,
   ResetPasswordData,
   AuthResponse,
+} from './user.service';
+
+export {
+  UserService,
   createUserService,
-} from './user.service.ts';
+} from './user.service';
 
 // ============================================================================
 // ABAC API Service
 // ============================================================================
 
-export {
-  AbacApiService,
+export type {
   UUID,
   CreateUserRequest,
   UpdateUserRequest,
@@ -95,6 +100,10 @@ export {
   AccessDecision,
   AccessDecisionResponse,
   RuleOperator,
+} from './abac-api.service';
+
+export {
+  AbacApiService,
   createAbacApiService,
 } from './abac-api.service';
 
@@ -102,13 +111,16 @@ export {
 // Client Policy Evaluator
 // ============================================================================
 
-export {
-  ClientPolicyEvaluator,
+export type {
   AttributeMap,
   EvaluationContext,
   ClientEvaluationResult,
   PolicyEvaluationOptions,
   PolicyCache,
+} from './client-policy-evaluator.service';
+
+export {
+  ClientPolicyEvaluator,
   createClientPolicyEvaluator,
 } from './client-policy-evaluator.service';
 
@@ -116,10 +128,13 @@ export {
 // Lookup Data Service
 // ============================================================================
 
-export {
-  LookupDataService,
+export type {
   LookupCacheEntry,
   LookupServiceOptions,
+} from './lookup.service';
+
+export {
+  LookupDataService,
   createLookupDataService,
 } from './lookup.service';
 
@@ -128,7 +143,7 @@ export {
 // ============================================================================
 
 import { createHttpClient, HttpClient } from './common.services';
-import { createUserService, UserService } from './user.service.ts';
+import { createUserService, UserService } from './user.service';
 import { createAbacApiService, AbacApiService } from './abac-api.service';
 import { createClientPolicyEvaluator, ClientPolicyEvaluator } from './client-policy-evaluator.service';
 import { createLookupDataService, LookupDataService } from './lookup.service';

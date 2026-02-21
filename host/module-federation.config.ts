@@ -9,9 +9,11 @@ export const mfConfig = {
         administrationmanagement: 'administrationmanagement@http://localhost:3007/remoteEntry.js', // URL to your remote app
   },
   shared: {
-    react: { singleton: true, requiredVersion: deps.react, eager: true },
-    'react-dom': { singleton: true, requiredVersion: deps['react-dom'], eager: true },
-    'react-router-dom': { singleton: true, requiredVersion: deps['react-router-dom'], eager: true },
+    react: { singleton: true, requiredVersion: deps.react, eager: false },
+    'react-dom': { singleton: true, requiredVersion: deps['react-dom'], eager: false },
+    'react/jsx-runtime': { singleton: true, requiredVersion: deps.react, eager: false },
+    'react/jsx-dev-runtime': { singleton: true, requiredVersion: deps.react, eager: false },
+    'react-router-dom': { singleton: true, requiredVersion: deps['react-router-dom'], eager: false },
   }
 
 };

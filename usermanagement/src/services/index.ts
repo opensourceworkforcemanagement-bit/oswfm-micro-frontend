@@ -34,7 +34,7 @@ export {
   createHttpClient,
   createCommonService,
   createBatchService,
-} from './commonServices';
+} from './common.services';
 
 // ============================================================================
 // User Service
@@ -170,7 +170,7 @@ export {
 // Default Configuration
 // ============================================================================
 
-import { createHttpClient, HttpClient } from './commonServices';
+import { createHttpClient, HttpClient } from './common.services';
 import { createUserService, UserService } from './user.service';
 import { createAbacApiService, AbacApiService } from './abac-api.service';
 import { createClientPolicyEvaluator, ClientPolicyEvaluator } from './client-policy-evaluator.service';

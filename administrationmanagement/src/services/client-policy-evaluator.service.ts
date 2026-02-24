@@ -31,9 +31,9 @@ export interface AttributeMap {
 }
 
 export interface EvaluationContext {
-  userId: UUID;
-  resourceId: UUID;
-  actionId: UUID;
+  userId: number;
+  resourceId: number;
+  operationId: number;
   subjectAttributes: AttributeMap;
   resourceAttributes: AttributeMap;
   environmentAttributes?: AttributeMap;
@@ -42,7 +42,7 @@ export interface EvaluationContext {
 export interface ClientEvaluationResult {
   decision: AccessDecision;
   reason: string;
-  appliedPolicyId?: UUID;
+  appliedPolicyId?: number;
   appliedPolicyName?: string;
   evaluatedPolicies: number;
   evaluationTimeMs: number;
@@ -58,10 +58,10 @@ export interface PolicyEvaluationOptions {
 
 export interface PolicyCache {
   policies: Policy[];
-  rules: Map<UUID, PolicyRule[]>;
-  actionTargets: Map<UUID, UUID[]>;
-  resourceTargets: Map<UUID, UUID[]>;
-  resourceTypeTargets: Map<UUID, number[]>;
+  rules: Map<number, PolicyRule[]>;
+  actionTargets: Map<number, number[]>;
+  resourceTargets: Map<number, number[]>;
+  resourceTypeTargets: Map<number, number[]>;
   lastUpdated: Date;
 }
 
@@ -95,9 +95,9 @@ export class ClientPolicyEvaluator {
    * Main evaluation method - evaluates access based on current user and context
    */
   async evaluate(
-    userId: UUID,
-    resourceId: UUID,
-    actionId: UUID,
+    userId: number,
+    resourceId: number,
+    operationId: number,
     environmentAttributes?: AttributeMap
   ): Promise<ClientEvaluationResult> {
     const startTime = performance.now();
@@ -108,15 +108,16 @@ export class ClientPolicyEvaluator {
       const context = await this.buildEvaluationContext(
         userId,
         resourceId,
-        actionId,
+        operationId,
         environmentAttributes
       );
 
       evaluationDetails.push(`Evaluating access for user ${userId}`);
-      evaluationDetails.push(`Resource: ${resourceId}, Action: ${actionId}`);
+      evaluationDetails.push(`Resource: ${resourceId}, Action: ${operationId}`);
 
-      // Get policies (from cache or server)
-      const policies = await this.getPolicies();
+      // Get policies relevant to this user (pre-filtered by subject attributes)
+      const policies = await this.apiService.getPoliciesForUser(userId);
+
       evaluationDetails.push(`Found ${policies.length} active policies`);
 
       // Evaluate policies in priority order
@@ -158,7 +159,7 @@ export class ClientPolicyEvaluator {
       // Fallback to server evaluation if enabled
       if (this.options.fallbackToServer) {
         console.warn('Client evaluation failed, falling back to server', error);
-        return this.fallbackToServerEvaluation(userId, resourceId, actionId, environmentAttributes);
+        return this.fallbackToServerEvaluation(userId, resourceId, operationId, environmentAttributes);
       }
 
       throw error;
@@ -179,7 +180,7 @@ export class ClientPolicyEvaluator {
   ): Promise<{ applicable: boolean; match: boolean; reason: string }> {
     // Check if policy targets this action
     const actionTargets = this.cache?.actionTargets.get(policy.policyId) || [];
-    if (actionTargets.length > 0 && !actionTargets.includes(context.actionId)) {
+    if (actionTargets.length > 0 && !actionTargets.includes(context.operationId)) {
       return { applicable: false, match: false, reason: 'Action not targeted by policy' };
     }
 
@@ -381,9 +382,9 @@ export class ClientPolicyEvaluator {
    * Build evaluation context with all necessary attributes
    */
   private async buildEvaluationContext(
-    userId: UUID,
-    resourceId: UUID,
-    actionId: UUID,
+    userId: number,
+    resourceId: number,
+    operationId: number,
     environmentAttributes?: AttributeMap
   ): Promise<EvaluationContext> {
     // Fetch subject attributes
@@ -407,7 +408,7 @@ export class ClientPolicyEvaluator {
     return {
       userId,
       resourceId,
-      actionId,
+      operationId,
       subjectAttributes,
       resourceAttributes,
       environmentAttributes,
@@ -512,16 +513,16 @@ export class ClientPolicyEvaluator {
    * Manually set policy targets (for caching action and resource targets)
    */
   setPolicyTargets(
-    policyId: UUID,
-    actionIds: UUID[],
-    resourceIds: UUID[],
+    policyId: number,
+    operationIds: number[],
+    resourceIds: number[],
     resourceTypeIds: number[]
   ): void {
     if (!this.cache) {
       throw new Error('Cache not initialized');
     }
 
-    this.cache.actionTargets.set(policyId, actionIds);
+    this.cache.actionTargets.set(policyId, operationIds);
     this.cache.resourceTargets.set(policyId, resourceIds);
     this.cache.resourceTypeTargets.set(policyId, resourceTypeIds);
   }
@@ -566,9 +567,9 @@ export class ClientPolicyEvaluator {
    * Fallback to server evaluation
    */
   private async fallbackToServerEvaluation(
-    userId: UUID,
-    resourceId: UUID,
-    actionId: UUID,
+    userId: number,
+    resourceId: number,
+    operationId: number,
     environmentAttributes?: AttributeMap
   ): Promise<ClientEvaluationResult> {
     const startTime = performance.now();
@@ -576,7 +577,7 @@ export class ClientPolicyEvaluator {
     const response = await this.apiService.evaluateAccess({
       userId,
       resourceId,
-      actionId,
+      operationId,
       environmentAttributes,
     });
 

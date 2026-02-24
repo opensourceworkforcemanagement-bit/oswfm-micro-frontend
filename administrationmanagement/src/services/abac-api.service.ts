@@ -49,11 +49,11 @@ export interface UpdateUserRequest {
 }
 
 export interface Resource {
-  resourceId: UUID;
+  resourceId: number;
   resourceName: string;
   resourceTypeId: number;
   resourceTypeName: string;
-  ownerId?: UUID;
+  ownerId?: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -62,18 +62,18 @@ export interface Resource {
 export interface CreateResourceRequest {
   resourceName: string;
   resourceTypeId: number;
-  ownerId?: UUID;
+  ownerId?: number;
 }
 
 export interface UpdateResourceRequest {
   resourceName?: string;
   resourceTypeId?: number;
-  ownerId?: UUID;
+  ownerId?: number;
   isActive?: boolean;
 }
 
 export interface Operation {
-  operationId: UUID;
+  operationId: number;
   operationName: string;
   description?: string;
   createdAt: string;
@@ -91,7 +91,7 @@ export interface UpdateOperationRequest {
 }
 
 export interface AttributeDefinition {
-  attributeId: UUID;
+  attributeId: number;
   attributeName: string;
   attributeCategoryId: number;
   attributeCategoryName: string;
@@ -207,9 +207,9 @@ export interface AddUserToGroupRequest {
 }
 
 export interface ResourceAttribute {
-  resourceAttributeId: UUID;
-  resourceId: UUID;
-  attributeId: UUID;
+  resourceAttributeId: number;
+  resourceId: number;
+  attributeId: number;
   attributeName?: string;
   attributeValue: string;
   isActive: boolean;
@@ -220,8 +220,8 @@ export interface ResourceAttribute {
 }
 
 export interface CreateResourceAttributeRequest {
-  resourceId: UUID;
-  attributeId: UUID;
+  resourceId: number;
+  attributeId: number;
   attributeValue: string;
   effectiveFrom?: string;
   effectiveTo?: string;
@@ -235,7 +235,7 @@ export interface UpdateResourceAttributeRequest {
 }
 
 export interface Policy {
-  policyId: UUID;
+  policyId: number;
   policyName: string;
   policyTypeId: number;
   policyTypeName: string;
@@ -261,9 +261,9 @@ export interface UpdatePolicyRequest {
 }
 
 export interface PolicyRule {
-  ruleId: UUID;
-  policyId: UUID;
-  attributeId: UUID;
+  ruleId: number;
+  policyId: number;
+  attributeId: number;
   attributeName?: string;
   operator: RuleOperator;
   comparisonValue: string;
@@ -276,8 +276,8 @@ export interface PolicyRule {
 // RuleOperator is imported from '../types'
 
 export interface CreatePolicyRuleRequest {
-  policyId: UUID;
-  attributeId: UUID;
+  policyId: number;
+  attributeId: number;
   operator: RuleOperator;
   comparisonValue: string;
   logicalOperator?: LogicalOperator;
@@ -315,9 +315,9 @@ export interface UpdatePolicyObligationRequest {
 }
 
 export interface AccessDecisionRequest {
-  userId: UUID;
-  resourceId: UUID;
-  operationId: UUID;
+  userId: number;
+  resourceId: number;
+  operationId: number;
   environmentAttributes?: Record<string, string>;
 }
 
@@ -326,7 +326,7 @@ export type AccessDecision = 'PERMIT' | 'DENY';
 export interface AccessDecisionResponse {
   decision: AccessDecision;
   reason: string;
-  appliedPolicyId?: UUID;
+  appliedPolicyId?: number;
   appliedPolicyName?: string;
   evaluationDetails?: string[];
 }
@@ -362,7 +362,7 @@ class ResourcesApiService extends CommonService<Resource> {
     return this.client.get<Resource[]>('/resources/active');
   }
 
-  async getResourcesByOwner(ownerId: UUID): Promise<ApiResponse<Resource[]>> {
+  async getResourcesByOwner(ownerId: number): Promise<ApiResponse<Resource[]>> {
     return this.client.get<Resource[]>(`/resources/owner/${ownerId}`);
   }
 }
@@ -394,6 +394,14 @@ class AttributeDefinitionsApiService extends CommonService<AttributeDefinition> 
 class SubjectAttributesApiService extends CommonService<SubjectAttribute> {
   constructor(client: HttpClient) {
     super(client, 'subject-attributes');
+  }
+
+  async getSubjectAttributesByUserId(userId: number): Promise<ApiResponse<SubjectAttribute[]>> {
+    return this.client.get<SubjectAttribute[]>(`/subject-attributes/user/${userId}`);
+  }
+
+  async getActiveSubjectAttributesByUserId(userId: number): Promise<ApiResponse<SubjectAttribute[]>> {
+    return this.client.get<SubjectAttribute[]>(`/subject-attributes/user/${userId}/active`);
   }
 
   async getResolvedAttributesByUserId(userId: number): Promise<ApiResponse<SubjectAttribute[]>> {
@@ -448,11 +456,11 @@ class ResourceAttributesApiService extends CommonService<ResourceAttribute> {
     super(client, 'resource-attributes');
   }
 
-  async getResourceAttributesByResourceId(resourceId: UUID): Promise<ApiResponse<ResourceAttribute[]>> {
+  async getResourceAttributesByResourceId(resourceId: number): Promise<ApiResponse<ResourceAttribute[]>> {
     return this.client.get<ResourceAttribute[]>(`/resource-attributes/resource/${resourceId}`);
   }
 
-  async getActiveResourceAttributesByResourceId(resourceId: UUID): Promise<ApiResponse<ResourceAttribute[]>> {
+  async getActiveResourceAttributesByResourceId(resourceId: number): Promise<ApiResponse<ResourceAttribute[]>> {
     return this.client.get<ResourceAttribute[]>(`/resource-attributes/resource/${resourceId}/active`);
   }
 }
@@ -466,35 +474,39 @@ class PoliciesApiService extends CommonService<Policy> {
     return this.client.get<Policy[]>('/policies/active');
   }
 
+  async getPoliciesForUser(userId: number): Promise<ApiResponse<Policy[]>> {
+    return this.client.get<Policy[]>(`/access/policies/user/${userId}`);
+  }
+
   async getPoliciesByType(policyTypeId: number): Promise<ApiResponse<Policy[]>> {
     return this.client.get<Policy[]>(`/policies/type/${policyTypeId}`);
   }
 
-  async getOperationsForPolicy(policyId: UUID): Promise<ApiResponse<Operation[]>> {
+  async getOperationsForPolicy(policyId: number): Promise<ApiResponse<Operation[]>> {
     return this.client.get<Operation[]>(`/policies/${policyId}/operations`);
   }
 
-  async getResourcesForPolicy(policyId: UUID): Promise<ApiResponse<Resource[]>> {
+  async getResourcesForPolicy(policyId: number): Promise<ApiResponse<Resource[]>> {
     return this.client.get<Resource[]>(`/policies/${policyId}/resources`);
   }
 
-  async addOperationToPolicy(policyId: UUID, operationId: UUID): Promise<ApiResponse<void>> {
+  async addOperationToPolicy(policyId: number, operationId: number): Promise<ApiResponse<void>> {
     return this.client.post<void>(`/policies/${policyId}/operations/${operationId}`);
   }
 
-  async removeOperationFromPolicy(policyId: UUID, operationId: UUID): Promise<ApiResponse<void>> {
+  async removeOperationFromPolicy(policyId: number, operationId: number): Promise<ApiResponse<void>> {
     return this.client.delete<void>(`/policies/${policyId}/operations/${operationId}`);
   }
 
-  async addResourceToPolicy(policyId: UUID, resourceId: UUID): Promise<ApiResponse<void>> {
+  async addResourceToPolicy(policyId: number, resourceId: number): Promise<ApiResponse<void>> {
     return this.client.post<void>(`/policies/${policyId}/resources/${resourceId}`);
   }
 
-  async addResourceTypeToPolicy(policyId: UUID, resourceTypeId: number): Promise<ApiResponse<void>> {
+  async addResourceTypeToPolicy(policyId: number, resourceTypeId: number): Promise<ApiResponse<void>> {
     return this.client.post<void>(`/policies/${policyId}/resource-types/${resourceTypeId}`);
   }
 
-  async removeResourceFromPolicy(policyId: UUID, resourceId: UUID): Promise<ApiResponse<void>> {
+  async removeResourceFromPolicy(policyId: number, resourceId: number): Promise<ApiResponse<void>> {
     return this.client.delete<void>(`/policies/${policyId}/resources/${resourceId}`);
   }
 }
@@ -504,7 +516,7 @@ class PolicyRulesApiService extends CommonService<PolicyRule> {
     super(client, 'policy-rules');
   }
 
-  async getRulesByPolicyId(policyId: UUID): Promise<ApiResponse<PolicyRule[]>> {
+  async getRulesByPolicyId(policyId: number): Promise<ApiResponse<PolicyRule[]>> {
     return this.client.get<PolicyRule[]>(`/policy-rules/policy/${policyId}`);
   }
 }
@@ -562,7 +574,7 @@ export class AbacApiService {
     return response.data || [];
   }
 
-  async getUserById(id: UUID): Promise<User> {
+  async getUserById(id: number): Promise<User> {
     const response = await this.users.getById(id);
     if (!response.success || !response.data) {
       throw new Error('User not found');
@@ -596,7 +608,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async updateUser(id: UUID, request: UpdateUserRequest): Promise<User> {
+  async updateUser(id: number, request: UpdateUserRequest): Promise<User> {
     const response = await this.users.update(id, request);
     if (!response.success || !response.data) {
       throw new Error('Failed to update user');
@@ -604,7 +616,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async deleteUser(id: UUID): Promise<void> {
+  async deleteUser(id: number): Promise<void> {
     await this.users.delete(id);
   }
 
@@ -614,7 +626,7 @@ export class AbacApiService {
     return response.data || [];
   }
 
-  async getResourceById(id: UUID): Promise<Resource> {
+  async getResourceById(id: number): Promise<Resource> {
     const response = await this.resources.getById(id);
     if (!response.success || !response.data) {
       throw new Error('Resource not found');
@@ -632,7 +644,7 @@ export class AbacApiService {
     return response.data || [];
   }
 
-  async getResourcesByOwner(ownerId: UUID): Promise<Resource[]> {
+  async getResourcesByOwner(ownerId: number): Promise<Resource[]> {
     const response = await this.resources.getResourcesByOwner(ownerId);
     return response.data || [];
   }
@@ -645,7 +657,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async updateResource(id: UUID, request: UpdateResourceRequest): Promise<Resource> {
+  async updateResource(id: number, request: UpdateResourceRequest): Promise<Resource> {
     const response = await this.resources.update(id, request);
     if (!response.success || !response.data) {
       throw new Error('Failed to update resource');
@@ -653,7 +665,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async deleteResource(id: UUID): Promise<void> {
+  async deleteResource(id: number): Promise<void> {
     await this.resources.delete(id);
   }
 
@@ -663,7 +675,7 @@ export class AbacApiService {
     return response.data || [];
   }
 
-  async getOperationById(id: UUID): Promise<Operation> {
+  async getOperationById(id: number): Promise<Operation> {
     const response = await this.operations.getById(id);
     if (!response.success || !response.data) {
       throw new Error('Operation not found');
@@ -687,7 +699,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async updateOperation(id: UUID, request: UpdateOperationRequest): Promise<Operation> {
+  async updateOperation(id: number, request: UpdateOperationRequest): Promise<Operation> {
     const response = await this.operations.update(id, request);
     if (!response.success || !response.data) {
       throw new Error('Failed to update operation');
@@ -695,7 +707,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async deleteOperation(id: UUID): Promise<void> {
+  async deleteOperation(id: number): Promise<void> {
     await this.operations.delete(id);
   }
 
@@ -705,7 +717,7 @@ export class AbacApiService {
     return response.data || [];
   }
 
-  async getAttributeDefinitionById(id: UUID): Promise<AttributeDefinition> {
+  async getAttributeDefinitionById(id: number): Promise<AttributeDefinition> {
     const response = await this.attributeDefinitions.getById(id);
     if (!response.success || !response.data) {
       throw new Error('Attribute definition not found');
@@ -734,7 +746,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async updateAttributeDefinition(id: UUID, request: UpdateAttributeDefinitionRequest): Promise<AttributeDefinition> {
+  async updateAttributeDefinition(id: number, request: UpdateAttributeDefinitionRequest): Promise<AttributeDefinition> {
     const response = await this.attributeDefinitions.update(id, request);
     if (!response.success || !response.data) {
       throw new Error('Failed to update attribute definition');
@@ -742,7 +754,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async deleteAttributeDefinition(id: UUID): Promise<void> {
+  async deleteAttributeDefinition(id: number): Promise<void> {
     await this.attributeDefinitions.delete(id);
   }
 
@@ -758,6 +770,16 @@ export class AbacApiService {
       throw new Error('Subject attribute not found');
     }
     return response.data;
+  }
+
+  async getSubjectAttributesByUserId(userId: number): Promise<SubjectAttribute[]> {
+    const response = await this.subjectAttributes.getSubjectAttributesByUserId(userId);
+    return response.data || [];
+  }
+
+  async getActiveSubjectAttributesByUserId(userId: number): Promise<SubjectAttribute[]> {
+    const response = await this.subjectAttributes.getActiveSubjectAttributesByUserId(userId);
+    return response.data || [];
   }
 
   async getResolvedAttributesByUserId(userId: number): Promise<SubjectAttribute[]> {
@@ -820,7 +842,7 @@ export class AbacApiService {
     return response.data || [];
   }
 
-  async getResourceAttributeById(id: UUID): Promise<ResourceAttribute> {
+  async getResourceAttributeById(id: number): Promise<ResourceAttribute> {
     const response = await this.resourceAttributes.getById(id);
     if (!response.success || !response.data) {
       throw new Error('Resource attribute not found');
@@ -828,12 +850,12 @@ export class AbacApiService {
     return response.data;
   }
 
-  async getResourceAttributesByResourceId(resourceId: UUID): Promise<ResourceAttribute[]> {
+  async getResourceAttributesByResourceId(resourceId: number): Promise<ResourceAttribute[]> {
     const response = await this.resourceAttributes.getResourceAttributesByResourceId(resourceId);
     return response.data || [];
   }
 
-  async getActiveResourceAttributesByResourceId(resourceId: UUID): Promise<ResourceAttribute[]> {
+  async getActiveResourceAttributesByResourceId(resourceId: number): Promise<ResourceAttribute[]> {
     const response = await this.resourceAttributes.getActiveResourceAttributesByResourceId(resourceId);
     return response.data || [];
   }
@@ -846,7 +868,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async updateResourceAttribute(id: UUID, request: UpdateResourceAttributeRequest): Promise<ResourceAttribute> {
+  async updateResourceAttribute(id: number, request: UpdateResourceAttributeRequest): Promise<ResourceAttribute> {
     const response = await this.resourceAttributes.update(id, request);
     if (!response.success || !response.data) {
       throw new Error('Failed to update resource attribute');
@@ -854,7 +876,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async deleteResourceAttribute(id: UUID): Promise<void> {
+  async deleteResourceAttribute(id: number): Promise<void> {
     await this.resourceAttributes.delete(id);
   }
 
@@ -864,7 +886,7 @@ export class AbacApiService {
     return response.data || [];
   }
 
-  async getPolicyById(id: UUID): Promise<Policy> {
+  async getPolicyById(id: number): Promise<Policy> {
     const response = await this.policies.getById(id);
     if (!response.success || !response.data) {
       throw new Error('Policy not found');
@@ -882,6 +904,11 @@ export class AbacApiService {
     return response.data || [];
   }
 
+  async getPoliciesForUser(userId: number): Promise<Policy[]> {
+    const response = await this.policies.getPoliciesForUser(userId);
+    return response.data || [];
+  }
+
   async createPolicy(request: CreatePolicyRequest): Promise<Policy> {
     const response = await this.policies.create(request);
     if (!response.success || !response.data) {
@@ -890,7 +917,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async updatePolicy(id: UUID, request: UpdatePolicyRequest): Promise<Policy> {
+  async updatePolicy(id: number, request: UpdatePolicyRequest): Promise<Policy> {
     const response = await this.policies.update(id, request);
     if (!response.success || !response.data) {
       throw new Error('Failed to update policy');
@@ -898,7 +925,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async deletePolicy(id: UUID): Promise<void> {
+  async deletePolicy(id: number): Promise<void> {
     await this.policies.delete(id);
   }
 
@@ -908,7 +935,7 @@ export class AbacApiService {
     return response.data || [];
   }
 
-  async getPolicyRuleById(id: UUID): Promise<PolicyRule> {
+  async getPolicyRuleById(id: number): Promise<PolicyRule> {
     const response = await this.policyRules.getById(id);
     if (!response.success || !response.data) {
       throw new Error('Policy rule not found');
@@ -916,7 +943,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async getRulesByPolicyId(policyId: UUID): Promise<PolicyRule[]> {
+  async getRulesByPolicyId(policyId: number): Promise<PolicyRule[]> {
     const response = await this.policyRules.getRulesByPolicyId(policyId);
     return response.data || [];
   }
@@ -929,7 +956,7 @@ export class AbacApiService {
     return response.data;
   }
 
-  async updatePolicyRule(id: UUID, request: UpdatePolicyRuleRequest): Promise<PolicyRule> {
+  async updatePolicyRule(id: number, request: UpdatePolicyRuleRequest): Promise<PolicyRule> {
     const response = await this.policyRules.update(id, request);
     if (!response.success || !response.data) {
       throw new Error('Failed to update policy rule');
@@ -937,38 +964,38 @@ export class AbacApiService {
     return response.data;
   }
 
-  async deletePolicyRule(id: UUID): Promise<void> {
+  async deletePolicyRule(id: number): Promise<void> {
     await this.policyRules.delete(id);
   }
 
   // Policy Targets
-  async getOperationsForPolicy(policyId: UUID): Promise<Operation[]> {
+  async getOperationsForPolicy(policyId: number): Promise<Operation[]> {
     const response = await this.policies.getOperationsForPolicy(policyId);
     return response.data || [];
   }
 
-  async getResourcesForPolicy(policyId: UUID): Promise<Resource[]> {
+  async getResourcesForPolicy(policyId: number): Promise<Resource[]> {
     const response = await this.policies.getResourcesForPolicy(policyId);
     return response.data || [];
   }
 
-  async addActionToPolicy(policyId: UUID, actionId: UUID): Promise<void> {
+  async addActionToPolicy(policyId: number, actionId: number): Promise<void> {
     await this.policies.addOperationToPolicy(policyId, actionId);
   }
 
-  async removeActionFromPolicy(policyId: UUID, actionId: UUID): Promise<void> {
+  async removeActionFromPolicy(policyId: number, actionId: number): Promise<void> {
     await this.policies.removeOperationFromPolicy(policyId, actionId);
   }
 
-  async addResourceToPolicy(policyId: UUID, resourceId: UUID): Promise<void> {
+  async addResourceToPolicy(policyId: number, resourceId: number): Promise<void> {
     await this.policies.addResourceToPolicy(policyId, resourceId);
   }
 
-  async addResourceTypeToPolicy(policyId: UUID, resourceTypeId: number): Promise<void> {
+  async addResourceTypeToPolicy(policyId: number, resourceTypeId: number): Promise<void> {
     await this.policies.addResourceTypeToPolicy(policyId, resourceTypeId);
   }
 
-  async removeResourceFromPolicy(policyId: UUID, resourceId: UUID): Promise<void> {
+  async removeResourceFromPolicy(policyId: number, resourceId: number): Promise<void> {
     await this.policies.removeResourceFromPolicy(policyId, resourceId);
   }
 
